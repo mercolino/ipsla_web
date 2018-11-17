@@ -1,0 +1,50 @@
+{% extends "main.html" %}
+
+{% block content %}
+    {% if indexes|length == 0 %}
+        <div class="row">
+            <div class="col-12">
+                <h2 class="text-center mt-3">No IP Sla's configured in host {{ snmp_data.hostname }}</h2>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-12 text-center">
+                <a class="btn btn-primary" href="{{ url_for('search') }}" role="button">Return to Search</a>
+            </div>
+        </div>
+    {% else %}
+        <div class="row">
+            <div class="col-12">
+                <h2 class="text-center mt-3">IP Sla's configured in host {{ snmp_data.hostname }}</h2>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-12">
+                <form action="" method="post" role="form">
+                    <table class="table table-bordered">
+                        <thead class="thead-dark">
+                            <tr>
+                                <th class="text-center" scope="col"></th>
+                                <th class="text-center" scope="col">Id</th>
+                                <th class="text-center" scope="col">Type</th>
+                                <th class="text-center" scope="col">Tag</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for i in range(0, indexes|length) %}
+                                <tr>
+                                    <td class="text-center"><input type="checkbox" class="form-check-input ml-auto" name="selection" id="id_{{ indexes[i] }}" value="{{ indexes[i] }}"></td>
+                                    <th class="text-center" scope="row">{{ indexes[i] }}</th>
+                                    <th class="text-center" scope="row">{{ types[i] }}</th>
+                                    <th class="text-center" scope="row">{{ tags[i] }}</th>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    <button type="submit" class="btn btn-success">Add Selected Ip Sla's</button>
+                </form>
+            </div>
+        </div>
+    {% endif %}
+
+{% endblock %}

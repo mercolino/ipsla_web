@@ -1,0 +1,100 @@
+{% extends "main.html" %}
+
+{% block content %}
+    <div class="row">
+        <div class="col-12">
+            <h2 class="text-center mt-3">Search for IP Sla's</h2>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-2"></div>
+        <div class="col-8">
+            <form action="" method="post" role="form">
+            {{ form.hidden_tag() }}
+                <div class="form-row">
+                    <div class="form-group col-4">
+                        <label for="hostname">{{ form.hostname.label }}</label>
+                        <input type="text" class="form-control" id="hostname" name="hostname" placeholder="Enter Ip Address">
+                        {% for error in form.hostname.errors %}
+                            <small id="hostnameError" class="form-text text-danger">[{{ error }}]</small>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="form-row">
+                    <legend class="col-form-label col-sm-2 mt-1">{{ form.snmp_version.label }}</legend>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="snmp_version" id="version2" value="2">
+                        <label class="form-check-label" for="inlineRadio1">Version 2</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="radio" name="snmp_version" id="version3" value="3">
+                        <label class="form-check-label" for="inlineRadio2">Version 3</label>
+                    </div>
+                    {% for error in form.snmp_version.errors %}
+                        <small id="snmpversionerror" class="form-text text-danger mt-3">[{{ error }}]</small>
+                    {% endfor %}
+                </div>
+                <div class="form-row">
+                    <div class="form-group col-6">
+                        <legend class="col-form-label pt-0">SNMP Version 2</legend>
+                        <label for="community">{{ form.community.label }}</label>
+                        <input type="text" class="form-control" id="community" name="community" placeholder="Enter Community">
+                        {% for error in form.community.errors %}
+                            <small id="communityError" class="form-text text-danger">[{{ error }}]</small>
+                        {% endfor %}
+                    </div>
+                    <div class="form-group col-6">
+                        <legend class="col-form-label pt-0">SNMP Version 3</legend>
+                        <label for="security_level">{{ form.security_level.label }}</label>
+                        <select class="form-control mr-sm-2" name="security_level" id="security_level">
+                            <option selected>Choose...</option>
+                            <option value="no_auth_or_privacy">No Auth or Priv</option>
+                            <option value="auth_without_privacy">Auth without Priv</option>
+                            <option value="auth_with_privacy">Auth with Privacy</option>
+                        </select>
+                        {% for error in form.security_level.errors %}
+                            <small id="security_levelError" class="form-text text-danger">[{{ error }}]</small>
+                        {% endfor %}
+                        <label for="security_username">{{ form.security_username.label }}</label>
+                        <input type="text" class="form-control" id="security_username" name="security_username" placeholder="Enter Security Username">
+                        {% for error in form.security_username.errors %}
+                            <small id="security_usernameError" class="form-text text-danger">[{{ error }}]</small>
+                        {% endfor %}
+                        <label for="auth_protocol">{{ form.auth_protocol.label }}</label>
+                        <select class="custom-select mr-sm-2" name="auth_protocol" id="auth_protocol">
+                            <option selected>Choose...</option>
+                            <option value="MD5">MD5</option>
+                            <option value="SHA">SHA</option>
+                        </select>
+                        {% for error in form.auth_protocol.errors %}
+                            <small id="auth_protocolError" class="form-text text-danger">[{{ error }}]</small>
+                        {% endfor %}
+                        <label for="auth_password">{{ form.auth_password.label }}</label>
+                        <input type="text" class="form-control" id="auth_password" name="auth_password" placeholder="Enter Authentication Password">
+                        {% for error in form.auth_password.errors %}
+                            <small id="auth_passwordError" class="form-text text-danger">[{{ error }}]</small>
+                        {% endfor %}
+                        <label for="privacy_protocol">{{ form.privacy_protocol.label }}</label>
+                        <select class="custom-select mr-sm-2" name="privacy_protocol" id="privacy_protocol">
+                            <option selected>Choose...</option>
+                            <option value="DES">DES</option>
+                            <option value="3DES">3DES</option>
+                            <option value="AES128">AES128</option>
+                        </select>
+                        {% for error in form.privacy_protocol.errors %}
+                            <small id="privacy_protocolError" class="form-text text-danger">[{{ error }}]</small>
+                        {% endfor %}
+                        <label for="privacy_password">{{ form.privacy_password.label }}</label>
+                        <input type="text" class="form-control" id="privacy_password" name="privacy_password" placeholder="Enter Privacy Password">
+                        {% for error in form.privacy_password.errors %}
+                            <small id="privacy_passwordError" class="form-text text-danger">[{{ error }}]</small>
+                        {% endfor %}
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-success">Search Ip Sla's</button>
+            </form>
+        </div>
+        <div class="col-2"></div>
+    </div>
+
+{% endblock %}

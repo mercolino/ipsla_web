@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+
+        <!-- Title of the page-->
+        <title>USAP Cisco Ip Sla</title>
+
+        <!-- Bootstrap and Favicon -->
+        <link href="{{ url_for('static', filename='favicon.ico') }}" rel=icon>
+        <link href="{{ url_for('static', filename='css/bootstrap.css') }}" rel="stylesheet">
+        <link href="{{ url_for('static', filename='css/datatables.css') }}" rel="stylesheet" type="text/css">
+        <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+        <script src="{{ url_for('static', filename='js/jquery-3.3.1.min.js') }}"></script>
+        <!-- popper (necessary for Bootstrap's JavaScript plugins) -->
+        <script src="{{ url_for('static', filename='js/popper.js') }}"></script>
+        <!-- tooltip (necessary for Bootstrap's JavaScript plugins) -->
+        <script src="{{ url_for('static', filename='js/tooltip.js') }}"></script>
+        <!-- Include all compiled plugins (below), or include individual files as needed -->
+        <script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
+        <script type="text/javascript" charset="utf8" src="{{ url_for('static', filename='js/datatables.js') }}"></script>
+        <script type="text/javascript" charset="utf8" src="{{ url_for('static', filename='DataTables-1.10.18/js/jquery.dataTables.min.js') }}"></script>
+        <script type="text/javascript" charset="utf8" src="{{ url_for('static', filename='DataTables-1.10.18/js/dataTables.bootstrap4.min.js') }}"></script>
+
+    </head>
+
+    <header>
+    </header>
+
+    <body>
+        <!-- Script to close alert flashes -->
+        <script>
+            window.setTimeout(function() {
+                $(".alert").fadeTo(500, 0).slideUp(500, function(){
+                    $(this).remove();
+                });
+            }, 5000);
+        </script>
+        <!-- Creating Fluid Container -->
+        <div class="container-fluid">
+            <!-- Creating row with the Title -->
+            <div class="row bg-info">
+                <div class="col-2">
+                </div>
+                <div class="col-8 align-self-center">
+                    <h1 class="text-center">USAP Cisco Ip Sla</h1>
+                </div>
+                <div class="col-2 text-center align-self-center">
+                    {% if request.path == "/" %}
+                        <a class="btn btn-primary" href="{{ url_for('config') }}" role="button">Config</a>
+                    {% else %}
+                        <a class="btn btn-primary" href="{{ url_for('main') }}" role="button">Home</a>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-12">
+                    {% with messages = get_flashed_messages(with_categories=true) %}
+                        {% if messages %}
+                            {% for category, message in messages %}
+                                {% if category == 'warning' %}
+                                    <div class="alert alert-warning" role="alert">
+                                        {{ message }}
+                                        <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                                    </div>
+                                {% elif  category == 'error' %}
+                                    <div class="alert alert-danger" role="alert">
+                                        {{ message }}
+                                        <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                                    </div>
+                                {% elif  category == 'success' %}
+                                    <div class="alert alert-success" role="alert">
+                                        {{ message }}
+                                        <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                                    </div>
+                                {%  else %}
+                                    <div class="alert alert-info" role="alert">
+                                        {{ message }}
+                                        <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+                </div>
+            </div>
+            {% block content%}{% endblock %}
+        </div>
+    </body>
+</html>

@@ -1,0 +1,66 @@
+{% extends "main.html" %}
+
+{% block content %}
+    {% if all_rows|length == 0 %}
+        <div class="row">
+            <div class="col-12">
+                <h2 class="text-center mt-3">No IP Sla's in the Polling Database</h2>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-12 text-center">
+                <a class="btn btn-primary" href="{{ url_for('search') }}" role="button">Search Ip Sla's</a>
+            </div>
+        </div>
+    {% else %}
+        <div class="row">
+            <div class="col-12">
+                <h2 class="text-center mt-3">IP Sla's in the Polling Database</h2>
+            </div>
+        </div>
+
+        <form action="" method="post" role="form">
+            <div class="row">
+                <div class="col-12">
+                    <table id='ipsla_data' class="table table-bordered">
+                        <thead class="thead-dark">
+                            <tr>
+                                <th class="text-center" scope="col"></th>
+                                <th class="text-center" scope="col">Id</th>
+                                <th class="text-center" scope="col">Hostname</th>
+                                <th class="text-center" scope="col">Ip Sla Id</th>
+                                <th class="text-center" scope="col">Ip Sla Type</th>
+                                <th class="text-center" scope="col">Ip Sla Tag</th>
+                                <th class="text-center" scope="col">Snmp Version</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for i in range(0, all_rows|length) %}
+                                <tr>
+                                    <td class="text-center"><input type="checkbox" class="form-check-input ml-auto" name="selection" id="id_{{ all_rows[i][0] }}" value="{{ all_rows[i][0] }}"></td>
+                                    <th class="text-center" scope="row">{{ all_rows[i][0] }}</th>
+                                    <th class="text-center" scope="row">{{ all_rows[i][1] }}</th>
+                                    <th class="text-center" scope="row">{{ all_rows[i][2] }}</th>
+                                    <th class="text-center" scope="row">{{ all_rows[i][3] }}</th>
+                                    <th class="text-center" scope="row">{{ all_rows[i][4] }}</th>
+                                    <th class="text-center" scope="row">{{ all_rows[i][5] }}</th>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="row mt-3">
+                <div class="col-auto">
+                    <a class="btn btn-success" href="{{ url_for('search') }}" role="button">Add Ip Sla's</a>
+                </div>
+                <div class="col-auto">
+                    <button type="submit" name="crud" value='remove' class="btn btn-danger">Remove Ip Sla's</button>
+                </div>
+            </div>
+        </form>
+    {% endif %}
+    <script>
+        $(document).ready(function() {$('#ipsla_data').DataTable();} );
+    </script>
+{% endblock %}
