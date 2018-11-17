@@ -1,28 +1,35 @@
+<!-- Page to configure the IP Sla's on the ipsla_polling table, in this table is all the data that the script
+ipsla_poller.py is going to use to poll for data  -->
+<!--Inheritance of main.html -->
 {% extends "main.html" %}
 
 {% block content %}
+    <!-- Check if there is data in the ipsla_polling table of the database -->
     {% if all_rows|length == 0 %}
         <div class="row">
             <div class="col-12">
                 <h2 class="text-center mt-3">No IP Sla's in the Polling Database</h2>
             </div>
         </div>
+        <!-- Button to search for IP Sla's if there is nothing configured on the DB -->
         <div class="row">
             <div class="col-12 text-center">
                 <a class="btn btn-primary" href="{{ url_for('search') }}" role="button">Search Ip Sla's</a>
             </div>
         </div>
     {% else %}
+        <!-- Section in case that there is data on the ipsla_polling table -->
         <div class="row">
             <div class="col-12">
                 <h2 class="text-center mt-3">IP Sla's in the Polling Database</h2>
             </div>
         </div>
-
+        <!-- Section for the form and table with data on the ipsla_polling table -->
         <form action="" method="post" role="form">
             <div class="row">
                 <div class="col-12">
                     <table id='ipsla_data' class="table table-bordered">
+                        <!-- Table header -->
                         <thead class="thead-dark">
                             <tr>
                                 <th class="text-center" scope="col"></th>
@@ -34,6 +41,7 @@
                                 <th class="text-center" scope="col">Snmp Version</th>
                             </tr>
                         </thead>
+                        <!-- Table body -->
                         <tbody>
                             {% for i in range(0, all_rows|length) %}
                                 <tr>
@@ -50,6 +58,7 @@
                     </table>
                 </div>
             </div>
+            <!-- Buttons to remove ip sla from DB or add more -->
             <div class="row mt-3">
                 <div class="col-auto">
                     <a class="btn btn-success" href="{{ url_for('search') }}" role="button">Add Ip Sla's</a>
@@ -60,6 +69,7 @@
             </div>
         </form>
     {% endif %}
+    <!-- Script for the datatable, navigation bar for the table -->
     <script>
         $(document).ready(function() {$('#ipsla_data').DataTable();} );
     </script>

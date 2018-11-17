@@ -1,3 +1,5 @@
+<!-- Page with the form to request snmp data to search for ip sla on a device -->
+<!-- Inheritance of main.html -->
 {% extends "main.html" %}
 
 {% block content %}
@@ -9,6 +11,7 @@
     <div class="row">
         <div class="col-2"></div>
         <div class="col-8">
+            <!-- Creation of the form to search for ipsla in devices -->
             <form action="" method="post" role="form">
             {{ form.hidden_tag() }}
                 <div class="form-row">

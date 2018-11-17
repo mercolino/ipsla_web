@@ -1,6 +1,9 @@
+<!-- This page present all the Ip Sla's configured on teh device if any -->
+<!-- Inheritance of main.html -->
 {% extends "main.html" %}
 
 {% block content %}
+    <!-- Check if there are IP Sla's configured on the device -->
     {% if indexes|length == 0 %}
         <div class="row">
             <div class="col-12">
@@ -13,6 +16,7 @@
             </div>
         </div>
     {% else %}
+        <!-- If there are Ip Sla's configured on the device present them in a table to add to the DB -->
         <div class="row">
             <div class="col-12">
                 <h2 class="text-center mt-3">IP Sla's configured in host {{ snmp_data.hostname }}</h2>
@@ -20,6 +24,7 @@
         </div>
         <div class="row">
             <div class="col-12">
+                <!-- Form and table with the IP Sla's found in the device -->
                 <form action="" method="post" role="form">
                     <table class="table table-bordered">
                         <thead class="thead-dark">
@@ -41,6 +46,7 @@
                             {% endfor %}
                         </tbody>
                     </table>
+                    <!-- Submit button to add ip sla's selected to the DB -->
                     <button type="submit" class="btn btn-success">Add Selected Ip Sla's</button>
                 </form>
             </div>

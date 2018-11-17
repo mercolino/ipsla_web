@@ -12,6 +12,7 @@
         <!-- Bootstrap and Favicon -->
         <link href="{{ url_for('static', filename='favicon.ico') }}" rel=icon>
         <link href="{{ url_for('static', filename='css/bootstrap.css') }}" rel="stylesheet">
+        <!-- css for datatables, the navigation bars for tables -->
         <link href="{{ url_for('static', filename='css/datatables.css') }}" rel="stylesheet" type="text/css">
         <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
         <script src="{{ url_for('static', filename='js/jquery-3.3.1.min.js') }}"></script>
@@ -21,6 +22,7 @@
         <script src="{{ url_for('static', filename='js/tooltip.js') }}"></script>
         <!-- Include all compiled plugins (below), or include individual files as needed -->
         <script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
+        <!-- Scripts for datatables, the navigation bars for tables -->
         <script type="text/javascript" charset="utf8" src="{{ url_for('static', filename='js/datatables.js') }}"></script>
         <script type="text/javascript" charset="utf8" src="{{ url_for('static', filename='DataTables-1.10.18/js/jquery.dataTables.min.js') }}"></script>
         <script type="text/javascript" charset="utf8" src="{{ url_for('static', filename='DataTables-1.10.18/js/dataTables.bootstrap4.min.js') }}"></script>
@@ -48,6 +50,7 @@
                 <div class="col-8 align-self-center">
                     <h1 class="text-center">Cisco Ip Sla</h1>
                 </div>
+                <!-- Adding the navigation button, config when in home, home when in anything else -->
                 <div class="col-2 text-center align-self-center">
                     {% if request.path == "/" %}
                         <a class="btn btn-primary" href="{{ url_for('config') }}" role="button">Config</a>
@@ -56,11 +59,13 @@
                     {% endif %}
                 </div>
             </div>
+            <!-- Flash Messages space for Flask -->
             <div class="row">
                 <div class="col-12">
                     {% with messages = get_flashed_messages(with_categories=true) %}
                         {% if messages %}
                             {% for category, message in messages %}
+                                <!-- Change color depending on type of alert -->
                                 {% if category == 'warning' %}
                                     <div class="alert alert-warning" role="alert">
                                         {{ message }}
@@ -87,6 +92,7 @@
                     {% endwith %}
                 </div>
             </div>
+            <!-- Block placement for the different pages -->
             {% block content%}{% endblock %}
         </div>
     </body>
