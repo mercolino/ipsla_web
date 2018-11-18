@@ -1,12 +1,40 @@
-from flask import Flask, render_template, request, redirect, flash, url_for, session
+from flask import Flask, render_template, request, redirect, flash, session
 from flask_wtf import FlaskForm
 from wtforms import StringField
 from wtforms.validators import DataRequired, IPAddress
 import sqlite3
-
+import dash
+import dash_core_components as dcc
+import dash_html_components as html
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'you-will-never-guess'
+
+app_dash = dash.Dash(__name__, server=app, url_base_pathname='/dashboard/')
+
+app_dash.layout = html.Div(children=[
+    html.A(html.Button('Home', className='three columns'),
+        href='/'),
+
+    html.H1(children='Ip Sla Graphs'),
+
+    html.Div(children='''
+        Any Important Text goes here
+    '''),
+
+    dcc.Graph(
+        id='example-graph',
+        figure={
+            'data': [
+                {'x': [1, 2, 3], 'y': [4, 1, 2], 'type': 'bar', 'name': 'SF'},
+                {'x': [1, 2, 3], 'y': [2, 4, 5], 'type': 'bar', 'name': u'Montreal'},
+            ],
+            'layout': {
+                'title': 'Dash Data Visualization'
+            }
+        }
+    )
+])
 
 
 # Class to define the ip sla search form
@@ -80,6 +108,7 @@ def ipsla_search(data):
 @app.route('/')
 def main():
     return render_template('main.html')
+
 
 
 # Config page, all the ip sla's on the polling database and presented and can be added or removed
@@ -194,5 +223,10 @@ def ipsla():
     return render_template('ipsla.html', indexes=ipsla_indexes, types=ipsla_types, tags=ipsla_tags, snmp_data=snmp_data)
 
 
+@app.route('/dash')
+def dash():
+    return redirect('/dashboard')
+
+
 if __name__ == '__main__':
-    app.run()
+    app.run_server()
