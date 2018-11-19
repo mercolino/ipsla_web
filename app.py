@@ -40,6 +40,26 @@ app_dash.layout = html.Div(children=[
         ], className='col-2'),
     ], className='row'),
 
+    html.Div([
+        html.Div([
+            html.Label('Host'),
+            dcc.Dropdown(
+                id='host',
+                options=[
+                    {'label': '1.1.1.1', 'value': '1.1.1.1'},
+                    {'label': '2.2.2.2', 'value': '2.2.2.2'},
+                    {'label': '5.5.5.5', 'value': '5.5.5.5'}
+                ],
+            ),
+        ], className='col-3'),
+        html.Div([
+            html.Label('Ip Sla'),
+            dcc.Dropdown(
+                id='ipsla',
+            ),
+        ], className='col-3'),
+    ], className='row'),
+
 
     dcc.Graph(
         id='example-graph',
@@ -55,6 +75,16 @@ app_dash.layout = html.Div(children=[
     )
 ], className='container-fluid')
 
+
+@app_dash.callback(dash.dependencies.Output('ipsla', 'options'),
+                   [dash.dependencies.Input('host', 'value')])
+def update_ipsla_dropdown(h):
+    if h == '1.1.1.1':
+        return [{'label': '1 (Tag1)', 'value': '1'},
+                {'label': '10', 'value': '10'},
+                {'label': '100', 'value': '100'}]
+    else:
+        return []
 
 # Class to define the ip sla search form
 class SearchIpSlaForm(FlaskForm):
