@@ -1,0 +1,16 @@
+# Configuration File for the Ip SLA Poller
+
+# Number of snmp processes to spawn, used to connect to devices and poll snmp data
+number_of_snmp_processes: 3
+
+# Number of Database processess to spawn, used grab data from queue, process it and insertit into the DB
+number_of_db_processes: 1
+
+# MongoDB Info
+mongo:
+  host: 127.0.0.1
+  port: 27017
+  username: username
+  password: password
+  database: ipsla_data
+  collection: host_ipsla-id

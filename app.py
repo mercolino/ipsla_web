@@ -11,16 +11,35 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'you-will-never-guess'
 
 app_dash = dash.Dash(__name__, server=app, url_base_pathname='/dashboard/')
+app_dash.css.append_css({'external_url': '/static/css/bootstrap.css'})
 
 app_dash.layout = html.Div(children=[
-    html.A(html.Button('Home', className='three columns'),
-        href='/'),
 
-    html.H1(children='Ip Sla Graphs'),
+    html.Div([
+        html.Div([
+        ], className='col-2'),
 
-    html.Div(children='''
-        Any Important Text goes here
-    '''),
+        html.Div([
+            html.H1(children='Cisco Ip Sla'),
+        ], className='col-8 text-center'),
+
+        html.Div([
+            html.A(html.Button('Home', className='btn btn-primary'), href='/'),
+        ], className='col-2 text-center align-self-center'),
+    ], className='row bg-info'),
+
+    html.Div([
+        html.Div([
+        ], className='col-2'),
+
+        html.Div([
+            html.H2(children='Dashboard'),
+        ], className='col-8 text-center'),
+
+        html.Div([
+        ], className='col-2'),
+    ], className='row'),
+
 
     dcc.Graph(
         id='example-graph',
@@ -34,7 +53,7 @@ app_dash.layout = html.Div(children=[
             }
         }
     )
-])
+], className='container-fluid')
 
 
 # Class to define the ip sla search form
