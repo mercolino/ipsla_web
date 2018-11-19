@@ -4,27 +4,27 @@ import time
 
 
 def ipsla_worker(num, queue):
-    print "Starting snmp process {p} with the name {name}".format(p=num, name=current_process().name)
+    print("Starting snmp process {p} with the name {name}".format(p=num, name=current_process().name))
     for ipsla in range(7):
         queue.put(current_process().name + ' ' + str(ipsla))
         time.sleep(1)
     queue.put('end')
-    print "Ending snmp process {p} with the name {name}".format(p=num, name=current_process().name)
+    print("Ending snmp process {p} with the name {name}".format(p=num, name=current_process().name))
 
 
 def db_worker(num, queue):
-    print "Starting db process {p} with the name {name}".format(p=num, name=current_process().name)
+    print("Starting db process {p} with the name {name}".format(p=num, name=current_process().name))
     while True:
         ipsla_processed = queue.get()
         if ipsla_processed != 'end':
-            print ipsla_processed
+            print(ipsla_processed)
         else:
             break
-    print "Ending db process {p} with the name {name}".format(p=num, name=current_process().name)
+    print("Ending db process {p} with the name {name}".format(p=num, name=current_process().name))
 
 
 if __name__ == "__main__":
-    f = file('config.yaml', 'r')
+    f = open('config.yaml', 'r')
     config = yaml.load(f)
 
     q = Queue()

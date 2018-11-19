@@ -6,6 +6,19 @@ number_of_snmp_processes: 3
 # Number of Database processess to spawn, used grab data from queue, process it and insertit into the DB
 number_of_db_processes: 1
 
+# Database to use, choices: sqlite, mongodb
+db: sqlite
+
+# Database name
+db_name: ipsla.db
+
+# SNMP variables
+snmp:
+  # Timeout in seconds
+  timeout: 2
+  # Number of retries
+  retries: 3
+
 # MongoDB Info
 mongo:
   host: 127.0.0.1

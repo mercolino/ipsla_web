@@ -2,13 +2,15 @@ from flask import Flask, render_template, request, redirect, flash, session
 from flask_wtf import FlaskForm
 from wtforms import StringField
 from wtforms.validators import DataRequired, IPAddress
-import sqlite3
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
+from lib.utils import ipsla_search, cons_ipsla_types, create_polling, insert_polling_data, grab_all_polls, delete_polls
+
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'you-will-never-guess'
+
 
 app_dash = dash.Dash(__name__, server=app, url_base_pathname='/dashboard/')
 app_dash.css.append_css({'external_url': '/static/css/bootstrap.css'})
@@ -86,6 +88,7 @@ def update_ipsla_dropdown(h):
     else:
         return []
 
+
 # Class to define the ip sla search form
 class SearchIpSlaForm(FlaskForm):
     hostname = StringField('Hostname', validators=[DataRequired(), IPAddress()])
@@ -139,25 +142,10 @@ class SearchIpSlaForm(FlaskForm):
         return result
 
 
-# Function to query the host to gather the ip sla's, return three lists indexes, type and tags
-def ipsla_search(data):
-    flash('Connection to host {host} successful'.format(host=data['hostname']), 'success')
-    for key in data:
-        print "The key {key} is \'{value}\'".format(key=key, value=data[key])
-
-    indexes = ['1', '10', '100']
-    #indexes = []
-    types = ['1', '1', '1']
-    tags = ['tag1', '', '']
-
-    return indexes, types, tags
-
-
 # Main Function just the landing page for now, here plotly dashboard is going to be presented
 @app.route('/')
 def main():
     return render_template('main.html')
-
 
 
 # Config page, all the ip sla's on the polling database and presented and can be added or removed
@@ -171,28 +159,13 @@ def config():
             selection = request.form.getlist('selection')
             # Connect to the database if the selection was not empty
             if len(selection) != 0:
-                db = sqlite3.connect('db/ipsla_poll.db')
-                cursor = db.cursor()
-                # Remove all the ip sla's selected
-                for s in selection:
-                    cursor.execute('''DELETE FROM ipsla_polling WHERE id = ? ''', (s,))
-
-                db.commit()
-                db.close()
-                flash('Ip Sla\'s removed form the polling database', 'warning')
+                message, message_category = delete_polls(selection)
+                flash(message, message_category)
             else:
                 flash('Nothing selected!. No Ip Sla\'s were removed form the polling database', 'error')
 
-
-    # Connect to the database when config page with method get is used
-    db = sqlite3.connect('db/ipsla_poll.db')
-    cursor = db.cursor()
-    # Grab all ip sla's on the database
-    try:
-        cursor.execute('''SELECT id, hostname, ipsla_index, ipsla_type, ipsla_tag, snmp_version FROM ipsla_polling''')
-        all_rows = cursor.fetchall()
-    except sqlite3.OperationalError:
-        all_rows = []
+    # query all rows in the polling table of the database
+    all_rows = grab_all_polls()
 
     # Render page
     return render_template('config.html', all_rows=all_rows)
@@ -207,7 +180,10 @@ def search():
     if request.method == 'POST':
         if form.validate():
             # Connect to the host and retrieve all the ip sla data
-            ipsla_indexes, ipsla_types, ipsla_tags = ipsla_search(form.data)
+            ipsla_indexes, ipsla_types, ipsla_tags, message, message_category = ipsla_search(form.data)
+            flash(message, message_category)
+            if message_category == 'error':
+                return redirect('/search')
             # Save data on session to be used on ipsla function
             session['indexes'] = ipsla_indexes
             session['types'] = ipsla_types
@@ -224,6 +200,10 @@ def ipsla():
     # Retrieve Session data saved in search function
     ipsla_indexes = session['indexes']
     ipsla_types = session['types']
+    # Creating list with names instead of numbers
+    ipsla_types_names = []
+    for type in ipsla_types:
+        ipsla_types_names.append(cons_ipsla_types[int(type)])
     ipsla_tags = session['tags']
     snmp_data = session['snmp_data']
 
@@ -231,45 +211,20 @@ def ipsla():
     if request.method == 'POST':
         # Gather checkboxes selected
         selection = request.form.getlist('selection')
-        # Connect to the databaseand create the table is does not exist
-        db = sqlite3.connect('db/ipsla_poll.db')
-        cursor = db.cursor()
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS ipsla_polling( id INTEGER PRIMARY KEY, hostname TEXT, ipsla_index TEXT, 
-            ipsla_type TEXT, ipsla_tag TEXT, snmp_version TEXT, snmp_community TEXT, snmp_security_level TEXT, 
-            snmp_security_username TEXT, snmp_auth_protocol TEXT, snmp_auth_password TEXT, snmp_priv_protocol TEXT, 
-            snmp_priv_password TEXT)
-        ''')
-        db.commit()
+        # Connect to the database and create the table if does not exist
+        create_polling()
 
-        # Insert data selected on the database
-        for s in selection:
-            i = ipsla_indexes.index(s)
-            # Check first if the combination hostname ipsla index is not present on the database
-            cursor.execute('''SELECT id FROM ipsla_polling WHERE hostname=? AND ipsla_index=?''',
-                           (snmp_data['hostname'], s))
-            exists = cursor.fetchone()
+        # Insert data in the polling table
+        message, message_category = insert_polling_data(selection, ipsla_indexes, snmp_data, ipsla_types, ipsla_tags)
 
-            # If no entry on teh database then add it
-            if exists is None:
-                cursor.execute('''INSERT INTO ipsla_polling(hostname, ipsla_index, ipsla_type, ipsla_tag, snmp_version,
-                snmp_community, snmp_security_level, snmp_security_username, snmp_auth_protocol, snmp_auth_password,
-                snmp_priv_protocol, snmp_priv_password) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)''',
-                               (snmp_data['hostname'], s, ipsla_types[i], ipsla_tags[i], snmp_data['snmp_version'],
-                                snmp_data['community'],
-                                '' if snmp_data['security_level'] == "Choose..." else snmp_data['security_level'],
-                                snmp_data['security_username'],
-                                '' if snmp_data['auth_protocol'] == "Choose..." else snmp_data['auth_protocol'],
-                                snmp_data['auth_password'],
-                                '' if snmp_data['privacy_protocol'] == "Choose..." else snmp_data['privacy_protocol'],
-                                snmp_data['privacy_password']))
+        # Provide feedback to the user
+        flash(message, message_category)
 
-        db.commit()
-        db.close()
-        flash('Ip Sla\'s added to the polling database', 'warning')
+        # Redirect
         return redirect('/config')
 
-    return render_template('ipsla.html', indexes=ipsla_indexes, types=ipsla_types, tags=ipsla_tags, snmp_data=snmp_data)
+    return render_template('ipsla.html', indexes=ipsla_indexes, types=ipsla_types, tags=ipsla_tags,
+                           types_names=ipsla_types_names, snmp_data=snmp_data)
 
 
 @app.route('/dash')
