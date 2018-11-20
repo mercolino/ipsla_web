@@ -196,7 +196,7 @@ def config():
     all_rows = grab_all_polls()
 
     # Render page
-    return render_template('config.html', all_rows=all_rows)
+    return render_template('config.html', all_rows=all_rows, types_names=cons_ipsla_types)
 
 
 # Function to search for IP Sla's

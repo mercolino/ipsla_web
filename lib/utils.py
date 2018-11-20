@@ -334,7 +334,7 @@ def grab_graph_data(hostname, ipsla):
         except sqlite3.OperationalError:
             return [], []
         try:
-            sql = 'SELECT datetime, latest_rtt FROM ' + ipsla_type + ' WHERE hostname = \'' + hostname + '\' AND ipsla_index = \'' + ipsla + '\''
+            sql = 'SELECT datetime, latest_rtt FROM ' + ipsla_type + ' WHERE hostname = \'' + hostname + '\' AND ipsla_index = \'' + ipsla + '\' ORDER BY datetime ASC'
             cursor.execute(sql)
             all_rows = cursor.fetchall()
         except sqlite3.OperationalError:
