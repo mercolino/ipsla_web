@@ -32,6 +32,47 @@ cons_ipsla_types = ['padding',
                     'fabricPathEcho']
 
 
+cons_ipsla_oper_sense = ['other',
+                         'ok',
+                         'disconnected',
+                         'overThreshold',
+                         'timeout',
+                         'busy',
+                         'notConnected',
+                         'dropped',
+                         'sequenceError',
+                         'verifyError',
+                         'applicationSpecific',
+                         'dnsServerTimeout',
+                         'tcpConnectTimeout',
+                         'httpTransactionTimeout',
+                         'dnsQueryError',
+                         'httpError',
+                         'error',
+                         'mplsLspEchoTxError',
+                         'mplsLspUnreachable',
+                         'mplsLspMalformedReq',
+                         'mplsLspReachButNotFEC',
+                         'enableOk',
+                         'enableNoConnect',
+                         'enableVersionFail',
+                         'enableInternalError',
+                         'enableAbort',
+                         'enableFail',
+                         'enableAuthFail',
+                         'enableFormatError',
+                         'enablePortInUse',
+                         'statsRetrieveOk',
+                         'statsRetrieveNoConnect',
+                         'statsRetrieveVersionFail',
+                         'statsRetrieveInternalError',
+                         'statsRetrieveAbort',
+                         'statsRetrieveFail',
+                         'statsRetrieveAuthFail',
+                         'statsRetrieveFormatError',
+                         'statsRetrievePortInUse']
+
+
 # Function to query the host to gather the ip sla's, return three lists indexes, type and tags
 def ipsla_search(data):
 

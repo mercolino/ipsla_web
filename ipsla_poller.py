@@ -5,6 +5,7 @@ from lib.utils import cons_ipsla_types, grab_all_polls
 import time
 from ipaddress import IPv4Address
 from datetime import datetime, timedelta
+import sqlite3
 
 
 def ipsla_worker(poll_q, ipsla_q):
@@ -57,6 +58,25 @@ def ipsla_worker(poll_q, ipsla_q):
             ipsla_results = {}
             ipsla_results['hostname'] = hostname
             ipsla_results['ipsla_index'] = ipsla_index
+            # Get sysuptime
+            try:
+                ipsla_results['sysuptime'] = snmp_session.get('1.3.6.1.2.1.1.3.0').value
+                # Handle timeout error
+            except EasySNMPTimeoutError:
+                message = "Timeout connecting to host {host}".format(host=hostname)
+                print(message)
+                break
+            # Handle Connection error
+            except EasySNMPConnectionError:
+                message = "Error connecting to host {host}".format(host=hostname)
+                print(message)
+                break
+            # Handle OID Problem, device not supported maybe?
+            except EasySNMPUnknownObjectIDError:
+                message = "Device {host} not supported".format(host=hostname)
+                print(message)
+                break
+            # Get snmp data from the template
             for key in template:
                 try:
                     snmp_res = snmp_session.get(template[key] + '.' + ipsla_index)
@@ -85,24 +105,83 @@ def ipsla_worker(poll_q, ipsla_q):
 
 def db_worker(ipsla_q):
     while ipsla_q.qsize() != 0:
+        # Retrieving SNMP config from yaml
+        f = open('config.yaml', 'r')
+        config = yaml.load(f)
+
+        f.close()
+
         # Grabbing data from queue
         ipsla_processed = ipsla_q.get()
 
-        for key in ipsla_processed:
-            if key == 'target_address':
-                print("key: {key}, value: {value}".format(key=key,
-                                                          value=IPv4Address(ipsla_processed[key].encode('latin-1'))))
-            elif key == 'source_address':
-                print("key: {key}, value: {value}".format(key=key,
-                                                          value=IPv4Address(ipsla_processed[key].encode('latin-1'))))
-            elif key == 'time':
-                converted_ticks = datetime.now() + timedelta(microseconds=int(ipsla_processed[key]) / 10)
-                print("key: {key}, value: {value}".format(key=key, value=converted_ticks.strftime("%Y-%m-%d %H:%M:%S")))
-            else:
-                print("key: {key}, value: {value}".format(key=key, value=ipsla_processed[key]))
+        # Check type of Database is used
+        if config['db'].lower() == 'sqlite':
+            # Create sqlite object
+            db = sqlite3.connect('db/' + config['db_name'].lower())
+            cursor = db.cursor()
+            # Create sql to create table based on the keys of the ipsla template
+            sql = 'CREATE TABLE IF NOT EXISTS ' + cons_ipsla_types[int(ipsla_processed['type'])] + ' ( id INTEGER PRIMARY KEY, '
+            for key in ipsla_processed:
+                sql = sql + key + ' TEXT, '
+            sql = sql[:-2] + ')'
+            # Create table
+            cursor.execute(sql)
 
-        print('##########################################\n'*3)
+            # Commit creation of table
+            db.commit()
 
+            # Create sql string to insert data into the table
+            sql1 = 'INSERT INTO ' + cons_ipsla_types[int(ipsla_processed['type'])] + ' ( '
+            sql2 = ' VALUES('
+            sql3 = 'SELECT * FROM ' + cons_ipsla_types[int(ipsla_processed['type'])] + ' WHERE '
+            for key in ipsla_processed:
+                if key == 'target_address' or key == 'source_address':
+                    sql1 = sql1 + key + ','
+                    sql2 = sql2 + '\'' + str(IPv4Address(ipsla_processed[key].encode('latin-1'))) + '\','
+                    sql3 = sql3 + key + '=\'' + str(IPv4Address(ipsla_processed[key].encode('latin-1'))) + '\' AND '
+                    print("key: {key}, value: {value}".format(key=key,
+                                                              value=IPv4Address(
+                                                                  ipsla_processed[key].encode('latin-1'))))
+                elif key == 'datetime':
+                    diff = int(ipsla_processed['sysuptime']) - int(ipsla_processed[key])
+                    converted_ticks = datetime.now() - timedelta(seconds=diff / 100)
+                    sql1 = sql1 + key + ','
+                    sql2 = sql2 + '\'' + converted_ticks.strftime("%Y-%m-%d %H:%M:%S") + '\','
+                    sql3 = sql3 + key + '=\'' + converted_ticks.strftime("%Y-%m-%d %H:%M:%S") + '\' AND '
+                    print("key: {key}, value: {value}".format(key=key,
+                                                              value=converted_ticks.strftime("%Y-%m-%d %H:%M:%S")))
+                elif key == 'sysuptime':
+                    sql1 = sql1 + key + ','
+                    sql2 = sql2 + '\'' + ipsla_processed[key] + '\','
+                    print("key: {key}, value: {value}".format(key=key, value=ipsla_processed[key]))
+                else:
+                    sql1 = sql1 + key + ','
+                    sql2 = sql2 + '\'' + ipsla_processed[key] + '\','
+                    sql3 = sql3 + key + '=\'' + ipsla_processed[key] + '\' AND '
+                    print("key: {key}, value: {value}".format(key=key, value=ipsla_processed[key]))
+
+            sql1 = sql1[:-1] + ')'
+            sql2 = sql2[:-1] + ')'
+            sql = sql1 + sql2
+            sql3 = sql3[:-5]
+
+            # Check if record is not present
+            cursor.execute(sql3)
+            exists = cursor.fetchone()
+
+            if exists is None:
+                # Insert data into table
+                # Create table
+                cursor.execute(sql)
+
+                # Commit Insert into table and close database
+                db.commit()
+                db.close()
+
+            print('##########################################\n' * 3)
+
+        elif config['db'].lower() == 'mongodb':
+            print("mongodb still not supported")
     return
 
 

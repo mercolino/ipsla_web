@@ -4,7 +4,7 @@
 number_of_snmp_processes: 3
 
 # Number of ip sla's in each ipsla process
-db_process_delay: 2
+db_process_delay: 1
 
 # Delay in seconds between the ipsla processing and the db inserting
 number_of_db_processes: 1
