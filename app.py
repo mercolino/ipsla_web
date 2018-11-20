@@ -6,6 +6,7 @@ import dash
 import dash_core_components as dcc
 import dash_html_components as html
 from lib.utils import ipsla_search, cons_ipsla_types, create_polling, insert_polling_data, grab_all_polls, delete_polls
+from lib.utils import grab_hostnames, grab_ipslas, grab_graph_data
 
 
 app = Flask(__name__)
@@ -14,6 +15,13 @@ app.config['SECRET_KEY'] = 'xxzSEO8jlCZt856qPayi'
 
 app_dash = dash.Dash(__name__, server=app, url_base_pathname='/dashboard/')
 app_dash.css.append_css({'external_url': '/static/css/bootstrap.css'})
+
+# Creating Host Dropdown
+hosts = grab_hostnames()
+host_dropdown = []
+for host in hosts:
+    host_dropdown.append({'label': host[0], 'value': host[0]})
+
 
 app_dash.layout = html.Div(children=[
 
@@ -42,18 +50,17 @@ app_dash.layout = html.Div(children=[
         ], className='col-2'),
     ], className='row'),
 
+    # Host and ipsla Dropdown
     html.Div([
+        # Host Dropdown
         html.Div([
             html.Label('Host'),
             dcc.Dropdown(
                 id='host',
-                options=[
-                    {'label': '1.1.1.1', 'value': '1.1.1.1'},
-                    {'label': '2.2.2.2', 'value': '2.2.2.2'},
-                    {'label': '5.5.5.5', 'value': '5.5.5.5'}
-                ],
+                options=host_dropdown,
             ),
         ], className='col-3'),
+        # IP Sla Dropdown
         html.Div([
             html.Label('Ip Sla'),
             dcc.Dropdown(
@@ -62,31 +69,52 @@ app_dash.layout = html.Div(children=[
         ], className='col-3'),
     ], className='row'),
 
+    # graph placeholder
+    html.Div([
+        html.Div(id='graph', className='col-12')
+    ], className='row')
 
-    dcc.Graph(
-        id='example-graph',
-        figure={
-            'data': [
-                {'x': [1, 2, 3], 'y': [4, 1, 2], 'type': 'bar', 'name': 'SF'},
-                {'x': [1, 2, 3], 'y': [2, 4, 5], 'type': 'bar', 'name': u'Montreal'},
-            ],
-            'layout': {
-                'title': 'Dash Data Visualization'
-            }
-        }
-    )
 ], className='container-fluid')
 
 
+# Function to populate the ipsla dropdown depending on the host selected
 @app_dash.callback(dash.dependencies.Output('ipsla', 'options'),
                    [dash.dependencies.Input('host', 'value')])
 def update_ipsla_dropdown(h):
-    if h == '1.1.1.1':
-        return [{'label': '1 (Tag1)', 'value': '1'},
-                {'label': '10', 'value': '10'},
-                {'label': '100', 'value': '100'}]
+    if h is not None:
+        ipslas = grab_ipslas(h)
+        ipsla_dropdown = []
+        for ipsla in ipslas:
+            ipsla_dropdown.append({'label': ipsla[0] + ' ( ' + ipsla[1] + ' )', 'value': ipsla[0]})
+
+        return ipsla_dropdown
     else:
         return []
+
+
+# Function to graph the data
+@app_dash.callback(dash.dependencies.Output('graph', 'children'),
+                   [dash.dependencies.Input('ipsla', 'value'), dash.dependencies.Input('host', 'value')])
+def update_ipsla_dropdown(i, h):
+    if (h is not None) and (i is not None):
+        ipsla_type, data = grab_graph_data(h, i)
+        x = []
+        y = []
+        for d in data:
+            x.append(d[0])
+            y.append(d[1])
+
+        return dcc.Graph(
+            figure={
+                'data': [
+                    {'x': x, 'y': y, 'type': 'line', 'name': 'Ip Sla'},
+                ],
+                'layout': {
+                    'title': '{type} Ip Sla {ipsla} for host {host}'.format(type=ipsla_type[0].upper() + ipsla_type[1:],
+                                                                            ipsla=i, host=h)
+                }
+            }
+        )
 
 
 # Class to define the ip sla search form

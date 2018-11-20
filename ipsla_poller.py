@@ -6,6 +6,7 @@ import time
 from ipaddress import IPv4Address
 from datetime import datetime, timedelta
 import sqlite3
+import sys
 
 
 def ipsla_worker(poll_q, ipsla_q):
@@ -196,34 +197,53 @@ if __name__ == "__main__":
     poll_queue = Queue()
     ipsla_results_queue = Queue()
 
-    # Querying DB for all polls
-    polls = grab_all_polls()
+    while True:
+        try:
+            print("Initiating Polling")
+            # Querying DB for all polls
+            polls = grab_all_polls()
 
-    # Load polls in the queue
-    for poll in polls:
-        poll_queue.put(poll)
+            # Load polls in the queue
+            for poll in polls:
+                poll_queue.put(poll)
 
-    # Launching all the SNMP Processes
-    snmp_jobs = []
-    for i in range(config['number_of_snmp_processes']):
-        snmp_process = Process(name="ipsla_worker-" + str(i), target=ipsla_worker, args=(poll_queue,
-                                                                                         ipsla_results_queue))
-        snmp_process.daemon = True
-        snmp_jobs.append(snmp_process)
-        snmp_process.start()
+            # Launching all the SNMP Processes
+            snmp_jobs = []
+            for i in range(config['number_of_snmp_processes']):
+                snmp_process = Process(name="ipsla_worker-" + str(i), target=ipsla_worker, args=(poll_queue,
+                                                                                                 ipsla_results_queue))
+                snmp_process.daemon = True
+                snmp_jobs.append(snmp_process)
+                snmp_process.start()
 
-    time.sleep(config['db_process_delay'])
+            time.sleep(config['db_process_delay'])
 
-    # Launching all the db inserting processes
-    db_jobs = []
-    for j in range(config['number_of_db_processes']):
-        db_process = Process(name="db_worker-" + str(j), target=db_worker, args=(ipsla_results_queue, ))
-        db_process.daemon = True
-        db_jobs.append(db_process)
-        db_process.start()
+            # Launching all the db inserting processes
+            db_jobs = []
+            for j in range(config['number_of_db_processes']):
+                db_process = Process(name="db_worker-" + str(j), target=db_worker, args=(ipsla_results_queue, ))
+                db_process.daemon = True
+                db_jobs.append(db_process)
+                db_process.start()
 
-    for snmp_job in snmp_jobs:
-        snmp_job.join()
+            for snmp_job in snmp_jobs:
+                snmp_job.join()
 
-    for db_job in db_jobs:
-        db_job.join()
+            for db_job in db_jobs:
+                db_job.join()
+
+            print("Ending Polling")
+            time.sleep(config['poll_frequency']*60)
+
+        except KeyboardInterrupt:
+            print("Keyboard interrupt waiting for all processes to be done")
+
+            for snmp_job in snmp_jobs:
+                snmp_job.join()
+
+            for db_job in db_jobs:
+                db_job.join()
+
+            print("Exiting")
+
+            sys.exit(0)

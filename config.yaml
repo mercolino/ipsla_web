@@ -1,5 +1,8 @@
 # Configuration File for the Ip SLA Poller
 
+# Poll Frequency in minutes
+poll_frequency: 1
+
 # Number of snmp processes to spawn, used to connect to devices and poll snmp data
 number_of_snmp_processes: 3
 

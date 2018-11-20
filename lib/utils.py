@@ -242,6 +242,7 @@ def delete_polls(selection):
 
     # Check type of Database is used
     if config['db'].lower() == 'sqlite':
+        # TODO: Remove also data from the ip sla data table
         db = sqlite3.connect('db/' + config['db_name'].lower())
         cursor = db.cursor()
         # Remove all the ip sla's selected
@@ -258,3 +259,90 @@ def delete_polls(selection):
     elif config['db'].lower() == 'mongodb':
         print("mongodb still not supported")
 
+
+# Function to grab the hosts from the poller database
+def grab_hostnames():
+    # Retrieving SNMP config from yaml
+    f = open('config.yaml', 'r')
+    config = yaml.load(f)
+
+    f.close()
+
+    # Check type of Database is used
+    if config['db'].lower() == 'sqlite':
+        db = sqlite3.connect('db/' + config['db_name'].lower())
+        cursor = db.cursor()
+        try:
+            cursor.execute(
+                '''SELECT DISTINCT hostname FROM ipsla_polling''')
+            all_rows = cursor.fetchall()
+        except sqlite3.OperationalError:
+            all_rows = []
+
+        db.close()
+
+        return all_rows
+
+    elif config['db'].lower() == 'mongodb':
+        print("mongodb still not supported")
+
+
+# Function to grab the ipsla's from a host from the poller database
+def grab_ipslas(hostname):
+    # Retrieving SNMP config from yaml
+    f = open('config.yaml', 'r')
+    config = yaml.load(f)
+
+    f.close()
+
+    # Check type of Database is used
+    if config['db'].lower() == 'sqlite':
+        db = sqlite3.connect('db/' + config['db_name'].lower())
+        cursor = db.cursor()
+        try:
+            cursor.execute(
+                '''SELECT DISTINCT ipsla_index, ipsla_tag FROM ipsla_polling WHERE hostname = ?''', (hostname,))
+            all_rows = cursor.fetchall()
+        except sqlite3.OperationalError:
+            all_rows = []
+        db.commit()
+        db.close()
+
+        return all_rows
+
+    elif config['db'].lower() == 'mongodb':
+        print("mongodb still not supported")
+
+
+# Function to grab the ipsla's from a host from the poller database
+def grab_graph_data(hostname, ipsla):
+    # Retrieving SNMP config from yaml
+    f = open('config.yaml', 'r')
+    config = yaml.load(f)
+
+    f.close()
+
+    # Check type of Database is used
+    if config['db'].lower() == 'sqlite':
+        db = sqlite3.connect('db/' + config['db_name'].lower())
+        cursor = db.cursor()
+        try:
+            cursor.execute(
+                '''SELECT ipsla_type FROM ipsla_polling WHERE hostname = ? AND ipsla_index = ?''', (hostname, ipsla))
+            result = cursor.fetchone()[0]
+            ipsla_type = cons_ipsla_types[int(result)]
+        except sqlite3.OperationalError:
+            return [], []
+        try:
+            sql = 'SELECT datetime, latest_rtt FROM ' + ipsla_type + ' WHERE hostname = \'' + hostname + '\' AND ipsla_index = \'' + ipsla + '\''
+            cursor.execute(sql)
+            all_rows = cursor.fetchall()
+        except sqlite3.OperationalError:
+            all_rows = []
+        db.commit()
+        db.close()
+
+        return ipsla_type, all_rows
+
+    elif config['db'].lower() == 'mongodb':
+        print("mongodb still not supported")
