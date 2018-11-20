@@ -9,7 +9,7 @@ from lib.utils import ipsla_search, cons_ipsla_types, create_polling, insert_pol
 
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'you-will-never-guess'
+app.config['SECRET_KEY'] = 'xxzSEO8jlCZt856qPayi'
 
 
 app_dash = dash.Dash(__name__, server=app, url_base_pathname='/dashboard/')

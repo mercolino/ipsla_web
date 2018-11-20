@@ -39,6 +39,8 @@ def ipsla_search(data):
     f = open('config.yaml', 'r')
     config = yaml.load(f)
 
+    f.close()
+
     # Check Version of SNMP Used
     if data['snmp_version'] == '2':
         message = "SNMP Version 2 Is not implemented yet"
@@ -97,6 +99,8 @@ def create_polling():
     f = open('config.yaml', 'r')
     config = yaml.load(f)
 
+    f.close()
+
     # Check type of Database is used
     if config['db'].lower() == 'sqlite':
         db = sqlite3.connect('db/' + config['db_name'].lower())
@@ -118,6 +122,8 @@ def insert_polling_data(selection, ipsla_indexes, snmp_data, ipsla_types, ipsla_
     # Retrieving SNMP config from yaml
     f = open('config.yaml', 'r')
     config = yaml.load(f)
+
+    f.close()
 
     # Check type of Database is used
     if config['db'].lower() == 'sqlite':
@@ -164,13 +170,15 @@ def grab_all_polls():
     f = open('config.yaml', 'r')
     config = yaml.load(f)
 
+    f.close()
+
     # Check type of Database is used
     if config['db'].lower() == 'sqlite':
         db = sqlite3.connect('db/' + config['db_name'].lower())
         cursor = db.cursor()
         try:
             cursor.execute(
-                '''SELECT id, hostname, ipsla_index, ipsla_type, ipsla_tag, snmp_version FROM ipsla_polling''')
+                '''SELECT * FROM ipsla_polling''')
             all_rows = cursor.fetchall()
         except sqlite3.OperationalError:
             all_rows = []
@@ -189,6 +197,8 @@ def delete_polls(selection):
     f = open('config.yaml', 'r')
     config = yaml.load(f)
 
+    f.close()
+
     # Check type of Database is used
     if config['db'].lower() == 'sqlite':
         db = sqlite3.connect('db/' + config['db_name'].lower())
@@ -206,3 +216,4 @@ def delete_polls(selection):
 
     elif config['db'].lower() == 'mongodb':
         print("mongodb still not supported")
+

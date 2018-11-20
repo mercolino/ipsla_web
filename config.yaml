@@ -3,7 +3,10 @@
 # Number of snmp processes to spawn, used to connect to devices and poll snmp data
 number_of_snmp_processes: 3
 
-# Number of Database processess to spawn, used grab data from queue, process it and insertit into the DB
+# Number of ip sla's in each ipsla process
+db_process_delay: 2
+
+# Delay in seconds between the ipsla processing and the db inserting
 number_of_db_processes: 1
 
 # Database to use, choices: sqlite, mongodb
