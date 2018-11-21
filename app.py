@@ -10,6 +10,8 @@ from lib.utils import ipsla_search, cons_ipsla_types, create_polling, insert_pol
 from lib.utils import grab_hostnames, grab_ipslas, grab_graph_data
 import pandas as pd
 
+#TODO: Separate the dash app into another file, create a comparison div to compare diffferent graphs
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'xxzSEO8jlCZt856qPayi'
 
