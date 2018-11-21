@@ -1,7 +1,9 @@
+pandas
 wtforms
 easysnmp
 dash-core-components
 dash-html-components
+dash-table
 dash
 flask-wtf
 flask

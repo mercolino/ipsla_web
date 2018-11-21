@@ -1,6 +1,7 @@
 from easysnmp import Session, EasySNMPTimeoutError, EasySNMPConnectionError, EasySNMPUnknownObjectIDError
 import yaml
 import sqlite3
+import pandas as pd
 
 
 cons_ipsla_types = ['padding',
@@ -315,7 +316,7 @@ def grab_ipslas(hostname):
 
 
 # Function to grab the ipsla's from a host from the poller database
-def grab_graph_data(hostname, ipsla):
+def grab_graph_data2(hostname, ipsla):
     # Retrieving SNMP config from yaml
     f = open('config.yaml', 'r')
     config = yaml.load(f)
@@ -343,6 +344,42 @@ def grab_graph_data(hostname, ipsla):
         db.close()
 
         return ipsla_type, all_rows
+
+    elif config['db'].lower() == 'mongodb':
+        print("mongodb still not supported")
+
+
+# Function to grab the ipsla's from a host from the poller database
+def grab_graph_data(hostname, ipsla):
+    # Retrieving SNMP config from yaml
+    f = open('config.yaml', 'r')
+    config = yaml.load(f)
+
+    f.close()
+
+    # Check type of Database is used
+    if config['db'].lower() == 'sqlite':
+        db = sqlite3.connect('db/' + config['db_name'].lower())
+        cursor = db.cursor()
+        try:
+            cursor.execute(
+                '''SELECT ipsla_type FROM ipsla_polling WHERE hostname = ? AND ipsla_index = ?''', (hostname, ipsla))
+            result = cursor.fetchone()[0]
+            ipsla_type = cons_ipsla_types[int(result)]
+        except sqlite3.OperationalError:
+            return [], []
+
+        # Querying database
+        sql = 'SELECT datetime, latest_rtt FROM ' + ipsla_type + ' WHERE hostname = \'' + hostname + '\' AND ipsla_index = \'' + ipsla + '\' ORDER BY datetime ASC'
+        df = pd.read_sql_query(sql, db)
+
+        # Convert Datetime strings to datetime
+        df['datetime'] = pd.to_datetime(df['datetime'])
+
+        # Convert latest_rtt strings to numeric
+        df['latest_rtt'] = pd.to_numeric(df['latest_rtt'])
+
+        return ipsla_type, df
 
     elif config['db'].lower() == 'mongodb':
         print("mongodb still not supported")
