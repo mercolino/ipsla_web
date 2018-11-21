@@ -7,6 +7,7 @@ import dash_core_components as dcc
 import dash_html_components as html
 from lib.utils import ipsla_search, cons_ipsla_types, create_polling, insert_polling_data, grab_all_polls, delete_polls
 from lib.utils import grab_hostnames, grab_ipslas, grab_graph_data
+import yaml
 
 
 app = Flask(__name__)
@@ -67,12 +68,21 @@ app_dash.layout = html.Div(children=[
                 id='ipsla',
             ),
         ], className='col-3'),
+        # Reserved Space
+        html.Div([
+
+        ], className='col-3'),
+        # Checkbox for auto-refresh
+        html.Div([
+            html.Button('Refresh', id='refresh_button', className='btn btn-success')
+        ], className='col-3 align-self-end'),
     ], className='row'),
 
     # graph placeholder
     html.Div([
-        html.Div(id='graph', className='col-12')
-    ], className='row')
+        html.Div(id='graph', className='col-12'),
+    ], className='row'),
+
 
 ], className='container-fluid')
 
@@ -94,8 +104,10 @@ def update_ipsla_dropdown(h):
 
 # Function to graph the data
 @app_dash.callback(dash.dependencies.Output('graph', 'children'),
-                   [dash.dependencies.Input('ipsla', 'value'), dash.dependencies.Input('host', 'value')])
-def update_ipsla_dropdown(i, h):
+                   [dash.dependencies.Input('ipsla', 'value'),
+                    dash.dependencies.Input('host', 'value'),
+                    dash.dependencies.Input('refresh_button', 'n_clicks')])
+def update_graph(i, h, n):
     if (h is not None) and (i is not None):
         ipsla_type, data = grab_graph_data(h, i)
         x = []
@@ -105,13 +117,15 @@ def update_ipsla_dropdown(i, h):
             y.append(d[1])
 
         return dcc.Graph(
+            animate=False,
             figure={
                 'data': [
                     {'x': x, 'y': y, 'type': 'line', 'name': 'Ip Sla'},
                 ],
                 'layout': {
-                    'title': '{type} Ip Sla {ipsla} for host {host}'.format(type=ipsla_type[0].upper() + ipsla_type[1:],
-                                                                            ipsla=i, host=h)
+                    'title': '{type} Ip Sla {ipsla} for host {host}'.format(type=ipsla_type[0].upper() + ipsla_type[1:],ipsla=i, host=h),
+                    'xaxis': {'title': 'DateTime', 'autorange': True},
+                    'yaxis': {'title': 'rtt (ms)', 'autorange': True},
                 }
             }
         )

@@ -124,6 +124,7 @@ def db_worker(ipsla_q):
             sql = 'CREATE TABLE IF NOT EXISTS ' + cons_ipsla_types[int(ipsla_processed['type'])] + ' ( id INTEGER PRIMARY KEY, '
             for key in ipsla_processed:
                 sql = sql + key + ' TEXT, '
+            sql = sql + 'datetime' + ' TEXT, '
             sql = sql[:-2] + ')'
             # Create table
             cursor.execute(sql)
@@ -143,14 +144,6 @@ def db_worker(ipsla_q):
                     print("key: {key}, value: {value}".format(key=key,
                                                               value=IPv4Address(
                                                                   ipsla_processed[key].encode('latin-1'))))
-                elif key == 'datetime':
-                    diff = int(ipsla_processed['sysuptime']) - int(ipsla_processed[key])
-                    converted_ticks = datetime.now() - timedelta(seconds=diff / 100)
-                    sql1 = sql1 + key + ','
-                    sql2 = sql2 + '\'' + converted_ticks.strftime("%Y-%m-%d %H:%M:%S") + '\','
-                    sql3 = sql3 + key + '=\'' + converted_ticks.strftime("%Y-%m-%d %H:%M:%S") + '\' AND '
-                    print("key: {key}, value: {value}".format(key=key,
-                                                              value=converted_ticks.strftime("%Y-%m-%d %H:%M:%S")))
                 elif key == 'sysuptime':
                     sql1 = sql1 + key + ','
                     sql2 = sql2 + '\'' + ipsla_processed[key] + '\','
@@ -160,6 +153,13 @@ def db_worker(ipsla_q):
                     sql2 = sql2 + '\'' + ipsla_processed[key] + '\','
                     sql3 = sql3 + key + '=\'' + ipsla_processed[key] + '\' AND '
                     print("key: {key}, value: {value}".format(key=key, value=ipsla_processed[key]))
+
+            diff = int(ipsla_processed['sysuptime']) - int(ipsla_processed[key])
+            converted_ticks = datetime.now() - timedelta(seconds=diff / 100)
+            sql1 = sql1 + 'datetime' + ','
+            sql2 = sql2 + '\'' + converted_ticks.strftime("%Y-%m-%d %H:%M:%S") + '\','
+            print("key: 'datetime', value: {value}".format(key=key,
+                                                      value=converted_ticks.strftime("%Y-%m-%d %H:%M:%S")))
 
             sql1 = sql1[:-1] + ')'
             sql2 = sql2[:-1] + ')'
