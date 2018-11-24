@@ -54,6 +54,12 @@ def serve_layout():
         ], className='row'),
 
         # Date Picker
+        # Date Picker
+        html.Div([
+            html.Div([
+                html.Label('Date Range')
+            ], className='col-2'),
+        ], className='row mt-3'),
         html.Div([
             # Date Ranger Picker Component
             html.Div([
@@ -64,7 +70,7 @@ def serve_layout():
                     end_date=datetime.now().date()
                 ),
             ], className='col-2'),
-        ], className='row mt-3 mb-3'),
+        ], className='row mb-3'),
 
         # Host and ipsla Dropdown
         html.Div([
@@ -216,7 +222,7 @@ def graph(df_json):
 
         return [
             html.Div([
-                html.H1('Graph')
+                html.H3('Graph')
             ], className='col-12 text-center mt-3'),
             dcc.Graph(
                 id='graph_ipsla',
@@ -277,7 +283,7 @@ def table(df_json):
 
         return [
             html.Div([
-                html.H1('Statistics')
+                html.H3('Statistics')
             ], className='col-12 text-center'),
             dash_table.DataTable(
                 id='ipsla_table',
