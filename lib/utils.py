@@ -316,7 +316,7 @@ def grab_ipslas(hostname):
 
 
 # Function to grab the ipsla's from a host from the poller database
-def grab_graph_data2(hostname, ipsla):
+def grab_graph_data(hostname, ipsla, sd, ed, a):
     # Retrieving SNMP config from yaml
     f = open('config.yaml', 'r')
     config = yaml.load(f)
@@ -333,44 +333,12 @@ def grab_graph_data2(hostname, ipsla):
             result = cursor.fetchone()[0]
             ipsla_type = cons_ipsla_types[int(result)]
         except sqlite3.OperationalError:
-            return [], []
-        try:
-            sql = 'SELECT datetime, latest_rtt FROM ' + ipsla_type + ' WHERE hostname = \'' + hostname + '\' AND ipsla_index = \'' + ipsla + '\' ORDER BY datetime ASC'
-            cursor.execute(sql)
-            all_rows = cursor.fetchall()
-        except sqlite3.OperationalError:
-            all_rows = []
-        db.commit()
-        db.close()
-
-        return ipsla_type, all_rows
-
-    elif config['db'].lower() == 'mongodb':
-        print("mongodb still not supported")
-
-
-# Function to grab the ipsla's from a host from the poller database
-def grab_graph_data(hostname, ipsla):
-    # Retrieving SNMP config from yaml
-    f = open('config.yaml', 'r')
-    config = yaml.load(f)
-
-    f.close()
-
-    # Check type of Database is used
-    if config['db'].lower() == 'sqlite':
-        db = sqlite3.connect('db/' + config['db_name'].lower())
-        cursor = db.cursor()
-        try:
-            cursor.execute(
-                '''SELECT ipsla_type FROM ipsla_polling WHERE hostname = ? AND ipsla_index = ?''', (hostname, ipsla))
-            result = cursor.fetchone()[0]
-            ipsla_type = cons_ipsla_types[int(result)]
-        except sqlite3.OperationalError:
-            return [], []
+            return '', pd.DataFrame()
+        except TypeError:
+            return '', pd.DataFrame()
 
         # Querying database
-        sql = 'SELECT datetime, latest_rtt FROM ' + ipsla_type + ' WHERE hostname = \'' + hostname + '\' AND ipsla_index = \'' + ipsla + '\' ORDER BY datetime ASC'
+        sql = 'SELECT datetime, latest_rtt FROM ' + ipsla_type + ' WHERE hostname = \'' + hostname + '\' AND ipsla_index = \'' + ipsla + '\' AND datetime BETWEEN \'' + sd + '\' AND \'' + ed + '\' ORDER BY datetime ASC'
         df = pd.read_sql_query(sql, db)
 
         # Convert Datetime strings to datetime
@@ -378,6 +346,13 @@ def grab_graph_data(hostname, ipsla):
 
         # Convert latest_rtt strings to numeric
         df['latest_rtt'] = pd.to_numeric(df['latest_rtt'])
+
+        # Assign Index
+        df.set_index('datetime', inplace=True)
+
+
+        if a != '':
+            df = df.resample(a).mean()
 
         return ipsla_type, df
 

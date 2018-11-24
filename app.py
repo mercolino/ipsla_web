@@ -62,9 +62,8 @@ def serve_layout():
                     start_date=datetime.now().date(),
                     end_date=datetime.now().date()
                 ),
-            ], className='col-3'),
+            ], className='col-2'),
         ], className='row mt-3 mb-3'),
-
 
         # Host and ipsla Dropdown
         html.Div([
@@ -74,37 +73,53 @@ def serve_layout():
                 dcc.Dropdown(
                     id='host',
                     options=host_dropdown,
-                    value=host_dropdown[0]['value']
                 ),
-            ], className='col-3'),
+            ], className='col-2'),
             # IP Sla Dropdown
             html.Div([
                 html.Label('Ip Sla'),
                 dcc.Dropdown(
                     id='ipsla',
                     options=ipsla_dropdown,
-                    value=ipsla_dropdown[0]['value']
                 ),
-            ], className='col-3'),
+            ], className='col-2'),
             # Reserved Space
             html.Div([
-            ], className='col-3'),
+                html.Label('Averages'),
+                dcc.Dropdown(
+                    options=[
+                        {'label': 'No Average', 'value': ''},
+                        {'label': 'Hourly', 'value': 'H'},
+                        {'label': 'Daily', 'value': 'D'},
+                        {'label': 'Weekly', 'value': 'W'},
+                        {'label': 'Monthly', 'value': 'M'},
+                    ],
+                    value='',
+                    id='averages',
+                ),
+            ], className='col-2'),
+            # Reserved
+            html.Div([
+            ], className='col-4'),
             # Refresh Button
             html.Div([
                 html.Button('Refresh', id='refresh_button', className='btn btn-success')
-            ], className='col-3 align-self-end'),
-        ], className='row text-center'),
+            ], className='col-2 align-self-end'),
+        ], className='row'),
 
         # graph placeholder
         html.Div([
             html.Div(id='graph', className='col-12'),
         ], className='row'),
 
+
         # table placeholder
         html.Div([
             html.Div(id='table', className='col-12'),
         ], className='row'),
 
+        # Hidden div inside the app that stores the intermediate value
+        html.Div(id='sahred-data', style={'display': 'none'})
 
     ], className='container-fluid')
 
@@ -122,175 +137,207 @@ app_dash.css.append_css({'external_url': '/static/css/bootstrap.css'})
 app_dash.layout = serve_layout()
 
 
+# Function to populate the ipsla dropdown depending on the host selected
+@app_dash.callback(dash.dependencies.Output('ipsla', 'options'),
+                   [dash.dependencies.Input('host', 'value')])
+def update_ipsla_dropdown(h):
+    if h is not None:
+        ipslas = grab_ipslas(h)
+        ipsla_dropdown = []
+        for ipsla in ipslas:
+            ipsla_dropdown.append({'label': ipsla[0] + ' ( ' + ipsla[1] + ' )', 'value': ipsla[0]})
+
+        return ipsla_dropdown
+    else:
+        return []
+
+
 # Function to graph the data
 @app_dash.callback(dash.dependencies.Output('graph', 'children'),
                    [
                        dash.dependencies.Input('host', 'value'),
                        dash.dependencies.Input('ipsla', 'value'),
+                       dash.dependencies.Input('averages', 'value'),
+                       dash.dependencies.Input('date-picker-range', 'start_date'),
+                       dash.dependencies.Input('date-picker-range', 'end_date'),
                        dash.dependencies.Input('refresh_button', 'n_clicks'),
                    ])
-def graph(h, i, n):
+def graph(h, i, a, sd, ed, n):
     if (h is not None) and (i is not None):
-        ipsla_type, dataframe = grab_graph_data(h, i)
 
-        # Add min to the dataframe
-        dataframe['min'] = dataframe['latest_rtt'].min()
+        sd_datetime = sd + ' 00:00:00'
+        ed_datetime = ed + ' 23:59:59'
 
-        # Add average to the dataframe
-        dataframe['avg'] = dataframe['latest_rtt'].mean()
+        ipsla_type, dataframe = grab_graph_data(h, i, sd_datetime, ed_datetime, a)
 
-        # Add max to the dataframe
-        dataframe['max'] = dataframe['latest_rtt'].max()
+        if not dataframe.empty:
 
-        return [
-            dcc.Graph(
-                id='graph_ipsla',
-                animate=False,
-                figure={
-                    'data': [
-                        {'x': dataframe['datetime'], 'y': dataframe['latest_rtt'], 'type': 'line', 'name': 'rtt'},
-                        {'x': dataframe['datetime'], 'y': dataframe['min'], 'type': 'line', 'name': 'min', 'line':{'width': 0.5}},
-                        {'x': dataframe['datetime'], 'y': dataframe['avg'], 'type': 'line', 'name': 'avg', 'line':{'width': 0.5}},
-                        {'x': dataframe['datetime'], 'y': dataframe['max'], 'type': 'line', 'name': 'max', 'line':{'width': 0.5}},
-                    ],
-                    'layout': {
-                        'title': '{type} Ip Sla {ipsla} for host {host}'.format(type=ipsla_type[0].upper() + ipsla_type[1:],ipsla=i, host=h),
-                        'xaxis': {
-                            'title': 'DateTime',
-                            'autorange': True,
-                            'rangeselector': {
-                                'buttons': [
-                                    {'count': 15, 'label': '15m', 'step': 'minute', 'stepmode': 'backward'},
-                                    {'count': 30, 'label': '30m', 'step': 'minute', 'stepmode': 'backward'},
-                                    {'count': 1, 'label': '1h', 'step': 'hour', 'stepmode': 'backward'},
-                                    {'count': 1, 'label': '1d', 'step': 'day', 'stepmode': 'backward'},
-                                    {'count': 1, 'label': '1wk', 'step': 'week', 'stepmode': 'backward'},
-                                    {'count': 1, 'label': '1M', 'step': 'month', 'stepmode': 'backward'},
-                                    {'count': 1, 'label': '1y', 'step': 'year', 'stepmode': 'backward'},
-                                    {'step': 'all'}
-                                ]
-                            },
-                            'rangeslider': {'type': 'date', 'visible': True},
-                        },
-                        'yaxis': {'title': 'Milliseconds', 'autorange': True},
-                    }
-                }
-            ),
-            html.Div([
+            # Add min to the dataframe
+            dataframe['min'] = dataframe['latest_rtt'].min()
+
+            # Add average to the dataframe
+            dataframe['avg'] = dataframe['latest_rtt'].mean()
+
+            # Add max to the dataframe
+            dataframe['max'] = dataframe['latest_rtt'].max()
+
+            return [
                 html.Div([
-                    html.H1('Statistics')
-                ], className='col-12 text-center')
-            ], className='row'),
-        ]
+                    html.H1('Graph')
+                ], className='col-12 text-center mt-3'),
+                dcc.Graph(
+                    id='graph_ipsla',
+                    animate=False,
+                    figure={
+                        'data': [
+                            {'x': dataframe.index, 'y': dataframe['latest_rtt'], 'type': 'line', 'name': 'rtt'},
+                            {'x': dataframe.index, 'y': dataframe['min'], 'type': 'line', 'name': 'min', 'line':{'width': 0.5}},
+                            {'x': dataframe.index, 'y': dataframe['avg'], 'type': 'line', 'name': 'avg', 'line':{'width': 0.5}},
+                            {'x': dataframe.index, 'y': dataframe['max'], 'type': 'line', 'name': 'max', 'line':{'width': 0.5}},
+                        ],
+                        'layout': {
+                            'title': '{type} Ip Sla {ipsla} for host {host}'.format(type=ipsla_type[0].upper() + ipsla_type[1:],ipsla=i, host=h),
+                            'xaxis': {
+                                'title': 'DateTime',
+                                'autorange': True,
+                                'rangeselector': {
+                                    'buttons': [
+                                        {'count': 15, 'label': '15m', 'step': 'minute', 'stepmode': 'backward'},
+                                        {'count': 30, 'label': '30m', 'step': 'minute', 'stepmode': 'backward'},
+                                        {'count': 1, 'label': '1h', 'step': 'hour', 'stepmode': 'backward'},
+                                        {'count': 1, 'label': '1d', 'step': 'day', 'stepmode': 'backward'},
+                                        {'count': 1, 'label': '1wk', 'step': 'week', 'stepmode': 'backward'},
+                                        {'count': 1, 'label': '1M', 'step': 'month', 'stepmode': 'backward'},
+                                        {'count': 1, 'label': '1y', 'step': 'year', 'stepmode': 'backward'},
+                                        {'step': 'all'}
+                                    ]
+                                },
+                                'rangeslider': {'type': 'date', 'visible': True},
+                            },
+                            'yaxis': {'title': 'Milliseconds', 'autorange': True},
+                        }
+                    }
+                ),
+            ]
 
 
 # Function to graph the data
 @app_dash.callback(dash.dependencies.Output('table', 'children'),
                    [dash.dependencies.Input('ipsla', 'value'),
                     dash.dependencies.Input('host', 'value'),
+                    dash.dependencies.Input('averages', 'value'),
+                    dash.dependencies.Input('date-picker-range', 'start_date'),
+                    dash.dependencies.Input('date-picker-range', 'end_date'),
                     dash.dependencies.Input('refresh_button', 'n_clicks')])
-def table(i, h, n):
+def table(i, h, a, sd, ed, n):
     if (h is not None) and (i is not None):
-        ipsla_type, dataframe = grab_graph_data(h, i)
+        sd_datetime = sd + ' 00:00:00'
+        ed_datetime = ed + ' 23:59:59'
 
-        # Add min to the dataframe
-        min = dataframe['latest_rtt'].min()
+        ipsla_type, dataframe = grab_graph_data(h, i, sd_datetime, ed_datetime, a)
 
-        # Add average to the dataframe
-        avg = dataframe['latest_rtt'].mean()
+        if not dataframe.empty:
+            # Add min to the dataframe
+            min = dataframe['latest_rtt'].min()
 
-        # Add std to the dataframe
-        std = dataframe['latest_rtt'].std()
+            # Add average to the dataframe
+            avg = dataframe['latest_rtt'].mean()
 
-        # Add max to the dataframe
-        max = dataframe['latest_rtt'].max()
+            # Add std to the dataframe
+            std = dataframe['latest_rtt'].std()
 
-        return [
-            dash_table.DataTable(
-                id='ipsla_table',
-                columns=[
-                    {'name': 'Data Range', 'id': "date_range"},
-                    {'name': 'Number of Points', 'id': "number_points"},
-                    {'name': 'Min rtt', 'id': "min_rtt"},
-                    {'name': 'Avg rtt', 'id': "avg_rtt"},
-                    {'name': 'Std Dev rtt', 'id': "std_rtt"},
-                    {'name': 'Max rtt', 'id': "max_rtt"},
-                ],
-                data=[
-                    {
-                        'date_range': dataframe['datetime'].min().strftime('%Y-%m-%d %H:%M:%S') + ' --> ' + dataframe['datetime'].max().strftime('%Y-%m-%d %H:%M:%S'),
-                        'number_points': len(dataframe.index),
-                        'min_rtt': min,
-                        'avg_rtt': avg,
-                        'std_rtt': std,
-                        'max_rtt': max
-                    }
-                ],
-                style_cell={'textAlign': 'center'},
-            )
-        ]
+            # Add max to the dataframe
+            max = dataframe['latest_rtt'].max()
 
+            return [
+                html.Div([
+                    html.H1('Statistics')
+                ], className='col-12 text-center'),
+                dash_table.DataTable(
+                    id='ipsla_table',
+                    columns=[
+                        {'name': 'Data Range', 'id': "date_range"},
+                        {'name': 'Number of Points', 'id': "number_points"},
+                        {'name': 'Min rtt', 'id': "min_rtt"},
+                        {'name': 'Avg rtt', 'id': "avg_rtt"},
+                        {'name': 'Std Dev rtt', 'id': "std_rtt"},
+                        {'name': 'Max rtt', 'id': "max_rtt"},
+                    ],
+                    data=[
+                        {
+                            'date_range': dataframe.index.min().strftime('%Y-%m-%d %H:%M:%S') + ' --> ' + dataframe.index.max().strftime('%Y-%m-%d %H:%M:%S'),
+                            'number_points': len(dataframe.index),
+                            'min_rtt': min,
+                            'avg_rtt': avg,
+                            'std_rtt': std,
+                            'max_rtt': max
+                        }
+                    ],
+                    style_cell={'textAlign': 'center'},
+                )
+            ]
 
-# Function to graph the data
-@app_dash.callback(dash.dependencies.Output('ipsla_table', 'data'),
-                   [
-                       dash.dependencies.Input('graph_ipsla', 'relayoutData'),
-                   ],
-                   [
-                       dash.dependencies.State('host', 'value'),
-                       dash.dependencies.State('ipsla', 'value'),
-                   ])
-def update_table(r, h, i):
-
-    if r is None:
-        return
-
-    dummy = ''
-
-    for key in r:
-        if key == 'xaxis.range':
-            dummy = key
-            break
-        elif key == 'xaxis.range[0]':
-            dummy = key
-            break
-
-    ipsla_type, dataframe = grab_graph_data(h, i)
-
-    if dummy == 'xaxis.range':
-        sd = pd.to_datetime(r['xaxis.range'][0])
-        ed = pd.to_datetime(r['xaxis.range'][1])
-        dataframe = dataframe.loc[(dataframe['datetime'] > sd) & (dataframe['datetime'] <= ed)]
-    elif dummy == 'xaxis.range[0]':
-        sd = pd.to_datetime(r['xaxis.range[0]'])
-        ed = pd.to_datetime(r['xaxis.range[1]'])
-        dataframe = dataframe.loc[(dataframe['datetime'] > sd) & (dataframe['datetime'] <= ed)]
-    else:
-        sd = dataframe['datetime'].min()
-        ed = dataframe['datetime'].max()
-
-    # Add min to the dataframe
-    min = dataframe['latest_rtt'].min()
-
-    # Add average to the dataframe
-    avg = dataframe['latest_rtt'].mean()
-
-    # Add average to the dataframe
-    std = dataframe['latest_rtt'].std()
-
-    # Add max to the dataframe
-    max = dataframe['latest_rtt'].max()
-
-    return [
-        {
-            'date_range': sd.strftime('%Y-%m-%d %H:%M:%S') + ' --> ' + ed.strftime('%Y-%m-%d %H:%M:%S'),
-            'number_points': len(dataframe.index),
-            'min_rtt': min,
-            'avg_rtt': avg,
-            'std_rtt': std,
-            'max_rtt': max
-        }
-    ]
+#
+# # Function to graph the data
+# @app_dash.callback(dash.dependencies.Output('ipsla_table', 'data'),
+#                    [
+#                        dash.dependencies.Input('graph_ipsla', 'relayoutData'),
+#                    ],
+#                    [
+#                        dash.dependencies.State('host', 'value'),
+#                        dash.dependencies.State('ipsla', 'value'),
+#                    ])
+# def update_table(r, h, i):
+#
+#     if r is None:
+#         return
+#
+#     dummy = ''
+#
+#     for key in r:
+#         if key == 'xaxis.range':
+#             dummy = key
+#             break
+#         elif key == 'xaxis.range[0]':
+#             dummy = key
+#             break
+#
+#     ipsla_type, dataframe = grab_graph_data(h, i)
+#
+#     if dummy == 'xaxis.range':
+#         sd = pd.to_datetime(r['xaxis.range'][0])
+#         ed = pd.to_datetime(r['xaxis.range'][1])
+#         dataframe = dataframe.loc[(dataframe['datetime'] > sd) & (dataframe['datetime'] <= ed)]
+#     elif dummy == 'xaxis.range[0]':
+#         sd = pd.to_datetime(r['xaxis.range[0]'])
+#         ed = pd.to_datetime(r['xaxis.range[1]'])
+#         dataframe = dataframe.loc[(dataframe['datetime'] > sd) & (dataframe['datetime'] <= ed)]
+#     else:
+#         sd = dataframe['datetime'].min()
+#         ed = dataframe['datetime'].max()
+#
+#     # Add min to the dataframe
+#     min = dataframe['latest_rtt'].min()
+#
+#     # Add average to the dataframe
+#     avg = dataframe['latest_rtt'].mean()
+#
+#     # Add average to the dataframe
+#     std = dataframe['latest_rtt'].std()
+#
+#     # Add max to the dataframe
+#     max = dataframe['latest_rtt'].max()
+#
+#     return [
+#         {
+#             'date_range': sd.strftime('%Y-%m-%d %H:%M:%S') + ' --> ' + ed.strftime('%Y-%m-%d %H:%M:%S'),
+#             'number_points': len(dataframe.index),
+#             'min_rtt': min,
+#             'avg_rtt': avg,
+#             'std_rtt': std,
+#             'max_rtt': max
+#         }
+#     ]
 
 
 # Class to define the ip sla search form
