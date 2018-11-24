@@ -10,8 +10,106 @@ from lib.utils import cons_ipsla_types, grab_all_polls, delete_polls
 #from lib.utils import ipsla_search, create_polling, insert_polling_data
 from lib.utils import grab_hostnames, grab_ipslas, grab_graph_data
 import pandas as pd
+from datetime import datetime
 
 #TODO: Separate the dash app into another file, create a comparison div to compare diffferent graphs
+
+def serve_layout():
+    # Creating Host Dropdown
+    hosts = grab_hostnames()
+    host_dropdown = []
+    for host in hosts:
+        host_dropdown.append({'label': host[0], 'value': host[0]})
+
+    ipslas = grab_ipslas(host_dropdown[0]['value'])
+    ipsla_dropdown = []
+    for ipsla in ipslas:
+        ipsla_dropdown.append({'label': ipsla[0] + ' ( ' + ipsla[1] + ' )', 'value': ipsla[0]})
+
+    layout = html.Div(children=[
+        html.Div([
+            html.Div([
+            ], className='col-2'),
+
+            html.Div([
+                html.H1(children='Cisco Ip Sla'),
+            ], className='col-8 text-center'),
+
+            html.Div([
+                html.A(html.Button('Home', className='btn btn-primary'), href='/'),
+            ], className='col-2 text-center align-self-center'),
+        ], className='row bg-info'),
+
+        html.Div([
+            html.Div([
+            ], className='col-2'),
+
+            html.Div([
+                html.H2(children='Dashboard'),
+            ], className='col-8 text-center'),
+
+            html.Div([
+            ], className='col-2'),
+        ], className='row'),
+
+        # Date Picker
+        html.Div([
+            # Date Ranger Picker Component
+            html.Div([
+                dcc.DatePickerRange(
+                    id='date-picker-range',
+                    initial_visible_month=datetime.now().date(),
+                    start_date=datetime.now().date(),
+                    end_date=datetime.now().date()
+                ),
+            ], className='col-3'),
+        ], className='row mt-3 mb-3'),
+
+
+        # Host and ipsla Dropdown
+        html.Div([
+            # Host Dropdown
+            html.Div([
+                html.Label('Host'),
+                dcc.Dropdown(
+                    id='host',
+                    options=host_dropdown,
+                    value=host_dropdown[0]['value']
+                ),
+            ], className='col-3'),
+            # IP Sla Dropdown
+            html.Div([
+                html.Label('Ip Sla'),
+                dcc.Dropdown(
+                    id='ipsla',
+                    options=ipsla_dropdown,
+                    value=ipsla_dropdown[0]['value']
+                ),
+            ], className='col-3'),
+            # Reserved Space
+            html.Div([
+            ], className='col-3'),
+            # Refresh Button
+            html.Div([
+                html.Button('Refresh', id='refresh_button', className='btn btn-success')
+            ], className='col-3 align-self-end'),
+        ], className='row text-center'),
+
+        # graph placeholder
+        html.Div([
+            html.Div(id='graph', className='col-12'),
+        ], className='row'),
+
+        # table placeholder
+        html.Div([
+            html.Div(id='table', className='col-12'),
+        ], className='row'),
+
+
+    ], className='container-fluid')
+
+    return layout
+
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'xxzSEO8jlCZt856qPayi'
@@ -21,93 +119,7 @@ app_dash = dash.Dash(__name__, server=app, url_base_pathname='/dashboard/')
 app_dash.config['suppress_callback_exceptions'] = True
 app_dash.css.append_css({'external_url': '/static/css/bootstrap.css'})
 
-# Creating Host Dropdown
-hosts = grab_hostnames()
-host_dropdown = []
-for host in hosts:
-    host_dropdown.append({'label': host[0], 'value': host[0]})
-
-
-app_dash.layout = html.Div(children=[
-
-    html.Div([
-        html.Div([
-        ], className='col-2'),
-
-        html.Div([
-            html.H1(children='Cisco Ip Sla'),
-        ], className='col-8 text-center'),
-
-        html.Div([
-            html.A(html.Button('Home', className='btn btn-primary'), href='/'),
-        ], className='col-2 text-center align-self-center'),
-    ], className='row bg-info'),
-
-    html.Div([
-        html.Div([
-        ], className='col-2'),
-
-        html.Div([
-            html.H2(children='Dashboard'),
-        ], className='col-8 text-center'),
-
-        html.Div([
-        ], className='col-2'),
-    ], className='row'),
-
-    # Host and ipsla Dropdown
-    html.Div([
-        # Host Dropdown
-        html.Div([
-            html.Label('Host'),
-            dcc.Dropdown(
-                id='host',
-                options=host_dropdown
-            ),
-        ], className='col-3'),
-        # IP Sla Dropdown
-        html.Div([
-            html.Label('Ip Sla'),
-            dcc.Dropdown(
-                id='ipsla',
-            ),
-        ], className='col-3'),
-        # Reserved Space
-        html.Div([
-        ], className='col-3'),
-        # Refresh Button
-        html.Div([
-            html.Button('Refresh', id='refresh_button', className='btn btn-success')
-        ], className='col-3 align-self-end'),
-    ], className='row text-center'),
-
-    # graph placeholder
-    html.Div([
-        html.Div(id='graph', className='col-12'),
-    ], className='row'),
-
-    # table placeholder
-    html.Div([
-        html.Div(id='table', className='col-12'),
-    ], className='row'),
-
-
-], className='container-fluid')
-
-
-# Function to populate the ipsla dropdown depending on the host selected
-@app_dash.callback(dash.dependencies.Output('ipsla', 'options'),
-                   [dash.dependencies.Input('host', 'value')])
-def update_ipsla_dropdown(h):
-    if h is not None:
-        ipslas = grab_ipslas(h)
-        ipsla_dropdown = []
-        for ipsla in ipslas:
-            ipsla_dropdown.append({'label': ipsla[0] + ' ( ' + ipsla[1] + ' )', 'value': ipsla[0]})
-
-        return ipsla_dropdown
-    else:
-        return []
+app_dash.layout = serve_layout()
 
 
 # Function to graph the data
