@@ -58,7 +58,7 @@ def serve_layout():
         html.Div([
             html.Div([
                 html.Label('Date Range')
-            ], className='col-2'),
+            ], className='col-4'),
         ], className='row mt-3'),
         html.Div([
             # Date Ranger Picker Component
@@ -69,7 +69,7 @@ def serve_layout():
                     start_date=datetime.now().date(),
                     end_date=datetime.now().date()
                 ),
-            ], className='col-2'),
+            ], className='col-4'),
         ], className='row mb-3'),
 
         # Host and ipsla Dropdown
@@ -105,13 +105,12 @@ def serve_layout():
                     id='averages',
                 ),
             ], className='col-2'),
-            # Reserved
-            html.Div([
-            ], className='col-4'),
             # Refresh Button
             html.Div([
-                html.Button('Refresh', id='refresh_button', className='btn btn-success')
-            ], className='col-2 align-self-end'),
+                html.Button('Refresh', id='refresh_button', className='btn btn-success mr-2'),
+                html.Button('Add to Compare', id='add_compare_button', className='btn btn-warning mr-2'),
+                html.Button('Clear Comparison', id='clear_compare_button', className='btn btn-danger'),
+            ], className='col-6 align-self-end text-center'),
         ], className='row'),
 
         # graph placeholder
@@ -125,11 +124,26 @@ def serve_layout():
             html.Div(id='table', className='col-12'),
         ], className='row'),
 
+        html.Hr([], className='mt-5 mb-5'),
+
+        # Comparison Graph placeholder
+        html.Div([
+            html.Div(id='comparison-list', className='col-12'),
+        ], className='row'),
+
+        # Comparison Graph placeholder
+        html.Div([
+            html.Div(id='comparison-graph', className='col-12'),
+        ], className='row'),
+
         # Hidden div inside the app that stores the data
         html.Div(id='shared-data', style={'display': 'none'}),
 
         # Hidden div inside the app that stores relayout state
-        html.Div(id='relayout-data', style={'display': 'none'})
+        html.Div(id='relayout-data', style={'display': 'none'}),
+
+        # Hidden div inside the app that shared dataframes for comparison
+        html.Div(id='shared-data-comparison', style={'display': 'none'}),
 
     ], className='container-fluid')
 
@@ -161,6 +175,33 @@ def update_ipsla_dropdown(h):
     else:
         return []
 
+
+# Function to add the data for comparison
+@app_dash.callback(dash.dependencies.Output('shared-data-comparison', 'children'),
+                   [
+                       dash.dependencies.Input('add_compare_button', 'n_clicks'),
+                   ],
+                   [
+                       dash.dependencies.State('shared-data', 'children'),
+                       dash.dependencies.State('shared-data-comparison', 'children'),
+                   ])
+def data_comparison(n, df_json, previous_data):
+    if df_json is not None:
+        if previous_data is not None:
+            dataset_list = json.loads(previous_data)
+            if dataset_list[-1] == df_json:
+                return previous_data
+            else:
+                dataset_list.append(df_json)
+                dataset_compare = json.dumps(dataset_list)
+        else:
+            dataset_list = []
+            dataset_list.append(df_json)
+            dataset_compare = json.dumps(dataset_list)
+
+        return dataset_compare
+    else:
+        return previous_data
 
 
 # Function to grab the data and pass it to other callbacks,more efficient
@@ -235,10 +276,11 @@ def graph(df_json):
                         {'x': dataframe.index, 'y': dataframe['max'], 'type': 'line', 'name': 'max', 'line':{'width': 0.5}},
                     ],
                     'layout': {
+                        'height': 600,
                         'title': '{type} Ip Sla {ipsla} for host {host}'.format(type=ipsla_type[0].upper() + ipsla_type[1:],ipsla=i, host=h),
                         'xaxis': {
                             'title': 'DateTime',
-                            #'autorange': True,
+                            'autorange': True,
                             'rangeselector': {
                                 'buttons': [
                                     {'count': 15, 'label': '15m', 'step': 'minute', 'stepmode': 'backward'},
@@ -373,6 +415,89 @@ def update_table(r, df_json, pr):
         }
     ]
 
+
+# Function to add to the dropdown the data for the comparison graph
+@app_dash.callback(dash.dependencies.Output('comparison-list', 'children'),
+                   [
+                       dash.dependencies.Input('add_compare_button', 'n_clicks'),
+                        dash.dependencies.Input('shared-data-comparison', 'children'),
+                   ],)
+def comparison_list(n, json_list):
+    if json_list is not None:
+        value_list = json.loads(json_list)
+        values = []
+        options = []
+        for value in value_list:
+            dataframe = pd.read_json(value)
+            string = dataframe['host'][0] + '(' + dataframe['ipsla_type'][0] + ',' + str(dataframe['ipsla_index'][0]) + ')'
+            values.append(string)
+            options.append({'label':string, 'value':string})
+
+        return [
+            html.Div([
+                html.H3('Comparison Graph')
+            ], className='col-12 text-center mt-3, bg-info'),
+            html.Label('Graph Comparison'),
+            dcc.Dropdown(
+                options=options,
+                value=values,
+                multi=True
+            ),
+        ]
+    else:
+        return []
+
+
+# Function to agraph the comparison graph
+@app_dash.callback(dash.dependencies.Output('comparison-graph', 'children'),
+                   [
+                       dash.dependencies.Input('add_compare_button', 'n_clicks'),
+                        dash.dependencies.Input('shared-data-comparison', 'children'),
+                   ],)
+def comparison_graph(n, json_list):
+    if json_list is not None:
+        value_list = json.loads(json_list)
+        data=[]
+        for value in value_list:
+            dataframe = pd.read_json(value)
+            string = dataframe['host'][0] + '(' + dataframe['ipsla_type'][0] + ',' + str(dataframe['ipsla_index'][0]) + ')'
+            data.append(
+                {'x': dataframe.index, 'y': dataframe['latest_rtt'], 'type': 'line', 'name': string},
+            )
+
+        children = [
+            dcc.Graph(
+                id='comparison_graph_ipsla',
+                animate=False,
+                figure={
+                    'data': data,
+                    'layout': {
+                        'height': 600,
+                        'xaxis': {
+                            'title': 'DateTime',
+                            'autorange': True,
+                            'rangeselector': {
+                                'buttons': [
+                                    {'count': 15, 'label': '15m', 'step': 'minute', 'stepmode': 'backward'},
+                                    {'count': 30, 'label': '30m', 'step': 'minute', 'stepmode': 'backward'},
+                                    {'count': 1, 'label': '1h', 'step': 'hour', 'stepmode': 'backward'},
+                                    {'count': 1, 'label': '1d', 'step': 'day', 'stepmode': 'backward'},
+                                    {'count': 1, 'label': '1wk', 'step': 'week', 'stepmode': 'backward'},
+                                    {'count': 1, 'label': '1M', 'step': 'month', 'stepmode': 'backward'},
+                                    {'count': 1, 'label': '1y', 'step': 'year', 'stepmode': 'backward'},
+                                    {'step': 'all'}
+                                ]
+                            },
+                            'rangeslider': {'type': 'date', 'visible': True},
+                        },
+                        'yaxis': {'title': 'Milliseconds', 'autorange': True},
+                    }
+                }
+            ),
+        ]
+        return children
+    else:
+        return []
 
 # Class to define the ip sla search form
 class SearchIpSlaForm(FlaskForm):
