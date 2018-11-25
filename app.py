@@ -118,7 +118,6 @@ def serve_layout():
             html.Div(id='graph', className='col-12'),
         ], className='row'),
 
-
         # table placeholder
         html.Div([
             html.Div(id='table', className='col-12'),
@@ -144,6 +143,9 @@ def serve_layout():
 
         # Hidden div inside the app that shared dataframes for comparison
         html.Div(id='shared-data-comparison', style={'display': 'none'}),
+
+        # Hidden div inside the app that shared the previous state of the buttons
+        html.Div(id='button-states', style={'display': 'none'}),
 
     ], className='container-fluid')
 
@@ -176,16 +178,37 @@ def update_ipsla_dropdown(h):
         return []
 
 
+# Function to save the state of the comparison buttons
+@app_dash.callback(dash.dependencies.Output('button-states', 'children'),
+                   [
+                       dash.dependencies.Input('add_compare_button', 'n_clicks'),
+                       dash.dependencies.Input('clear_compare_button', 'n_clicks'),
+                   ],
+                   )
+def data_comparison(n, c):
+    state = {'add': n, 'clear': c}
+
+    return json.dumps(state)
+
+
 # Function to add the data for comparison
 @app_dash.callback(dash.dependencies.Output('shared-data-comparison', 'children'),
                    [
                        dash.dependencies.Input('add_compare_button', 'n_clicks'),
+                       dash.dependencies.Input('clear_compare_button', 'n_clicks'),
                    ],
                    [
                        dash.dependencies.State('shared-data', 'children'),
                        dash.dependencies.State('shared-data-comparison', 'children'),
-                   ])
-def data_comparison(n, df_json, previous_data):
+                       dash.dependencies.State('button-states', 'children'),
+                   ],
+                   )
+def data_comparison(n, c, df_json, previous_data, previous_state):
+    previous_state = json.loads(previous_state)
+
+    if previous_state['clear'] != c:
+        return
+
     if df_json is not None:
         if previous_data is not None:
             dataset_list = json.loads(previous_data)
@@ -237,6 +260,7 @@ def data(h, i, a, sd, ed, n):
 def save_relayout_state(r):
 
     return json.dumps(r)
+
 
 
 # Function to graph the data
