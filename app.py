@@ -13,7 +13,6 @@ import pandas as pd
 from datetime import datetime
 import json
 
-#TODO: Separate the dash app into another file, create a comparison div to compare diffferent graphs
 
 def serve_layout():
     # Creating Host Dropdown
@@ -204,22 +203,29 @@ def data_comparison(n, c):
                    ],
                    )
 def data_comparison(n, c, df_json, previous_data, previous_state):
-    previous_state = json.loads(previous_state)
+    if previous_state is not None:
+        previous_state = json.loads(previous_state)
 
-    if previous_state['clear'] != c:
-        return
+        if previous_state['clear'] != c:
+            return
 
     if df_json is not None:
         if previous_data is not None:
             dataset_list = json.loads(previous_data)
-            if dataset_list[-1] == df_json:
+            dataframe = pd.read_json(df_json)
+            string = dataframe['host'][0] + '(' + dataframe['ipsla_type'][0] + ',' + str(
+                dataframe['ipsla_index'][0]) + ')'
+            if string in dataset_list:
                 return previous_data
             else:
-                dataset_list.append(df_json)
+                dataset_list[string] = df_json
                 dataset_compare = json.dumps(dataset_list)
         else:
-            dataset_list = []
-            dataset_list.append(df_json)
+            dataset_list = {}
+            dataframe= pd.read_json(df_json)
+            string = dataframe['host'][0] + '(' + dataframe['ipsla_type'][0] + ',' + str(
+                dataframe['ipsla_index'][0]) + ')'
+            dataset_list[string] =dataframe.to_json(date_format='iso')
             dataset_compare = json.dumps(dataset_list)
 
         return dataset_compare
@@ -449,24 +455,17 @@ def update_table(r, df_json, pr):
 def comparison_list(n, json_list):
     if json_list is not None:
         value_list = json.loads(json_list)
-        values = []
-        options = []
+        compare_list = ''
         for value in value_list:
-            dataframe = pd.read_json(value)
-            string = dataframe['host'][0] + '(' + dataframe['ipsla_type'][0] + ',' + str(dataframe['ipsla_index'][0]) + ')'
-            values.append(string)
-            options.append({'label':string, 'value':string})
+            compare_list = value + ' | ' + compare_list
 
         return [
             html.Div([
                 html.H3('Comparison Graph')
             ], className='col-12 text-center mt-3, bg-info'),
-            html.Label('Graph Comparison'),
-            dcc.Dropdown(
-                options=options,
-                value=values,
-                multi=True
-            ),
+            html.Div([
+                'Comparing: | ' + compare_list
+            ], className='col-12 mt-3 bg-dark text-white'),
         ]
     else:
         return []
@@ -483,10 +482,9 @@ def comparison_graph(n, json_list):
         value_list = json.loads(json_list)
         data=[]
         for value in value_list:
-            dataframe = pd.read_json(value)
-            string = dataframe['host'][0] + '(' + dataframe['ipsla_type'][0] + ',' + str(dataframe['ipsla_index'][0]) + ')'
+            dataframe = pd.read_json(value_list[value])
             data.append(
-                {'x': dataframe.index, 'y': dataframe['latest_rtt'], 'type': 'line', 'name': string},
+                {'x': dataframe.index, 'y': dataframe['latest_rtt'], 'type': 'line', 'name': value},
             )
 
         children = [
