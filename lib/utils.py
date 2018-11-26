@@ -1,4 +1,4 @@
-#from easysnmp import Session, EasySNMPTimeoutError, EasySNMPConnectionError, EasySNMPUnknownObjectIDError
+from easysnmp import Session, EasySNMPTimeoutError, EasySNMPConnectionError, EasySNMPUnknownObjectIDError
 import yaml
 import sqlite3
 import pandas as pd
@@ -74,136 +74,136 @@ cons_ipsla_oper_sense = ['other',
                          'statsRetrievePortInUse']
 
 
-# # Function to query the host to gather the ip sla's, return three lists indexes, type and tags
-# def ipsla_search(data):
-#
-#     # Retrieving SNMP config from yaml
-#     f = open('config.yaml', 'r')
-#     config = yaml.load(f)
-#
-#     f.close()
-#
-#     # Check Version of SNMP Used
-#     if data['snmp_version'] == '2':
-#         message = "SNMP Version 2 Is not implemented yet"
-#         message_category = 'error'
-#         return [], [], [], message, message_category
-#     elif data['snmp_version'] == '3':
-#         # Create an SNMP session to be used for all our requests
-#         snmp_session = Session(retries=config['snmp']['retries'], timeout=config['snmp']['timeout'],
-#                                hostname=data['hostname'], version=int(data['snmp_version']), security_level=data['security_level'],
-#                                security_username=data['security_username'], auth_protocol=data['auth_protocol'],
-#                                auth_password=data['auth_password'], privacy_protocol=data['privacy_protocol'],
-#                                privacy_password=data['privacy_password'])
-#
-#         try:
-#             # Perform an SNMP walk to retrieve all the ipsla's configured and types
-#             ipsla_types = snmp_session.walk('1.3.6.1.4.1.9.9.42.1.2.1.1.4')
-#         # Handle timeout error
-#         except EasySNMPTimeoutError:
-#             message = "Timeout connecting to host {host}".format(host=data['hostname'])
-#             message_category = 'error'
-#             return [], [], [], message, message_category
-#         # Handle Connection error
-#         except EasySNMPConnectionError:
-#             message = "Error connecting to host {host}".format(host=data['hostname'])
-#             message_category = 'error'
-#             return [], [], [], message, message_category
-#         # Handle OID Problem, device not supported maybe?
-#         except EasySNMPUnknownObjectIDError:
-#             message = "Device {host} not supported".format(host=data['hostname'])
-#             message_category = 'error'
-#             return [], [], [], message, message_category
-#
-#         # Perform an SNMP walk to retrieve all the Tags for the ipsla's
-#         ipsla_tags = snmp_session.walk('1.3.6.1.4.1.9.9.42.1.2.1.1.12')
-#
-#         # Create lists for indexes and types
-#         indexes = []
-#         types = []
-#         tags = []
-#         i = 0
-#         for ipsla in ipsla_types:
-#             indexes.append(ipsla.oid_index)
-#             types.append(ipsla.value)
-#             tags.append(ipsla_tags[i].value)
-#             i += 1
-#
-#     message = 'Connection to host {host} successful'.format(host=data['hostname'])
-#     message_category = 'success'
-#
-#     return indexes, types, tags, message, message_category
-#
-#
-# # Function to create the polling table on the database
-# def create_polling():
-#     # Retrieving SNMP config from yaml
-#     f = open('config.yaml', 'r')
-#     config = yaml.load(f)
-#
-#     f.close()
-#
-#     # Check type of Database is used
-#     if config['db'].lower() == 'sqlite':
-#         db = sqlite3.connect('db/' + config['db_name'].lower())
-#         cursor = db.cursor()
-#         cursor.execute('''
-#                     CREATE TABLE IF NOT EXISTS ipsla_polling( id INTEGER PRIMARY KEY, hostname TEXT, ipsla_index TEXT,
-#                     ipsla_type TEXT, ipsla_tag TEXT, snmp_version TEXT, snmp_community TEXT, snmp_security_level TEXT,
-#                     snmp_security_username TEXT, snmp_auth_protocol TEXT, snmp_auth_password TEXT, snmp_priv_protocol TEXT,
-#                     snmp_priv_password TEXT)
-#                 ''')
-#         db.commit()
-#         db.close()
-#     elif config['db'].lower() == 'mongodb':
-#         print("mongodb still not supported")
-#
-#
-# # Function to insert polling data in the database
-# def insert_polling_data(selection, ipsla_indexes, snmp_data, ipsla_types, ipsla_tags):
-#     # Retrieving SNMP config from yaml
-#     f = open('config.yaml', 'r')
-#     config = yaml.load(f)
-#
-#     f.close()
-#
-#     # Check type of Database is used
-#     if config['db'].lower() == 'sqlite':
-#         db = sqlite3.connect('db/' + config['db_name'].lower())
-#         cursor = db.cursor()
-#
-#         # Insert data selected on the database
-#         for s in selection:
-#             i = ipsla_indexes.index(s)
-#             # Check first if the combination hostname ipsla index is not present on the database
-#             cursor.execute('''SELECT id FROM ipsla_polling WHERE hostname=? AND ipsla_index=?''',
-#                            (snmp_data['hostname'], s))
-#             exists = cursor.fetchone()
-#
-#             # If no entry on the database then add it
-#             if exists is None:
-#                 cursor.execute('''INSERT INTO ipsla_polling(hostname, ipsla_index, ipsla_type, ipsla_tag, snmp_version,
-#                         snmp_community, snmp_security_level, snmp_security_username, snmp_auth_protocol, snmp_auth_password,
-#                         snmp_priv_protocol, snmp_priv_password) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)''',
-#                                (snmp_data['hostname'], s, ipsla_types[i], ipsla_tags[i], snmp_data['snmp_version'],
-#                                 snmp_data['community'],
-#                                 '' if snmp_data['security_level'] == "Choose..." else snmp_data['security_level'],
-#                                 snmp_data['security_username'],
-#                                 '' if snmp_data['auth_protocol'] == "Choose..." else snmp_data['auth_protocol'],
-#                                 snmp_data['auth_password'],
-#                                 '' if snmp_data['privacy_protocol'] == "Choose..." else snmp_data['privacy_protocol'],
-#                                 snmp_data['privacy_password']))
-#
-#         db.commit()
-#         db.close()
-#
-#         message = 'Ip Sla\'s added to the polling database'
-#         message_category = 'warning'
-#
-#         return message, message_category
-#
-#     elif config['db'].lower() == 'mongodb':
-#         print("mongodb still not supported")
+# Function to query the host to gather the ip sla's, return three lists indexes, type and tags
+def ipsla_search(data):
+
+    # Retrieving SNMP config from yaml
+    f = open('config.yaml', 'r')
+    config = yaml.load(f)
+
+    f.close()
+
+    # Check Version of SNMP Used
+    if data['snmp_version'] == '2':
+        message = "SNMP Version 2 Is not implemented yet"
+        message_category = 'error'
+        return [], [], [], message, message_category
+    elif data['snmp_version'] == '3':
+        # Create an SNMP session to be used for all our requests
+        snmp_session = Session(retries=config['snmp']['retries'], timeout=config['snmp']['timeout'],
+                               hostname=data['hostname'], version=int(data['snmp_version']), security_level=data['security_level'],
+                               security_username=data['security_username'], auth_protocol=data['auth_protocol'],
+                               auth_password=data['auth_password'], privacy_protocol=data['privacy_protocol'],
+                               privacy_password=data['privacy_password'])
+
+        try:
+            # Perform an SNMP walk to retrieve all the ipsla's configured and types
+            ipsla_types = snmp_session.walk('1.3.6.1.4.1.9.9.42.1.2.1.1.4')
+        # Handle timeout error
+        except EasySNMPTimeoutError:
+            message = "Timeout connecting to host {host}".format(host=data['hostname'])
+            message_category = 'error'
+            return [], [], [], message, message_category
+        # Handle Connection error
+        except EasySNMPConnectionError:
+            message = "Error connecting to host {host}".format(host=data['hostname'])
+            message_category = 'error'
+            return [], [], [], message, message_category
+        # Handle OID Problem, device not supported maybe?
+        except EasySNMPUnknownObjectIDError:
+            message = "Device {host} not supported".format(host=data['hostname'])
+            message_category = 'error'
+            return [], [], [], message, message_category
+
+        # Perform an SNMP walk to retrieve all the Tags for the ipsla's
+        ipsla_tags = snmp_session.walk('1.3.6.1.4.1.9.9.42.1.2.1.1.12')
+
+        # Create lists for indexes and types
+        indexes = []
+        types = []
+        tags = []
+        i = 0
+        for ipsla in ipsla_types:
+            indexes.append(ipsla.oid_index)
+            types.append(ipsla.value)
+            tags.append(ipsla_tags[i].value)
+            i += 1
+
+    message = 'Connection to host {host} successful'.format(host=data['hostname'])
+    message_category = 'success'
+
+    return indexes, types, tags, message, message_category
+
+
+# Function to create the polling table on the database
+def create_polling():
+    # Retrieving SNMP config from yaml
+    f = open('config.yaml', 'r')
+    config = yaml.load(f)
+
+    f.close()
+
+    # Check type of Database is used
+    if config['db'].lower() == 'sqlite':
+        db = sqlite3.connect('db/' + config['db_name'].lower())
+        cursor = db.cursor()
+        cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS ipsla_polling( id INTEGER PRIMARY KEY, hostname TEXT, ipsla_index TEXT,
+                    ipsla_type TEXT, ipsla_tag TEXT, snmp_version TEXT, snmp_community TEXT, snmp_security_level TEXT,
+                    snmp_security_username TEXT, snmp_auth_protocol TEXT, snmp_auth_password TEXT, snmp_priv_protocol TEXT,
+                    snmp_priv_password TEXT)
+                ''')
+        db.commit()
+        db.close()
+    elif config['db'].lower() == 'mongodb':
+        print("mongodb still not supported")
+
+
+# Function to insert polling data in the database
+def insert_polling_data(selection, ipsla_indexes, snmp_data, ipsla_types, ipsla_tags):
+    # Retrieving SNMP config from yaml
+    f = open('config.yaml', 'r')
+    config = yaml.load(f)
+
+    f.close()
+
+    # Check type of Database is used
+    if config['db'].lower() == 'sqlite':
+        db = sqlite3.connect('db/' + config['db_name'].lower())
+        cursor = db.cursor()
+
+        # Insert data selected on the database
+        for s in selection:
+            i = ipsla_indexes.index(s)
+            # Check first if the combination hostname ipsla index is not present on the database
+            cursor.execute('''SELECT id FROM ipsla_polling WHERE hostname=? AND ipsla_index=?''',
+                           (snmp_data['hostname'], s))
+            exists = cursor.fetchone()
+
+            # If no entry on the database then add it
+            if exists is None:
+                cursor.execute('''INSERT INTO ipsla_polling(hostname, ipsla_index, ipsla_type, ipsla_tag, snmp_version,
+                        snmp_community, snmp_security_level, snmp_security_username, snmp_auth_protocol, snmp_auth_password,
+                        snmp_priv_protocol, snmp_priv_password) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)''',
+                               (snmp_data['hostname'], s, ipsla_types[i], ipsla_tags[i], snmp_data['snmp_version'],
+                                snmp_data['community'],
+                                '' if snmp_data['security_level'] == "Choose..." else snmp_data['security_level'],
+                                snmp_data['security_username'],
+                                '' if snmp_data['auth_protocol'] == "Choose..." else snmp_data['auth_protocol'],
+                                snmp_data['auth_password'],
+                                '' if snmp_data['privacy_protocol'] == "Choose..." else snmp_data['privacy_protocol'],
+                                snmp_data['privacy_password']))
+
+        db.commit()
+        db.close()
+
+        message = 'Ip Sla\'s added to the polling database'
+        message_category = 'warning'
+
+        return message, message_category
+
+    elif config['db'].lower() == 'mongodb':
+        print("mongodb still not supported")
 
 
 # Function to grab all data on the polling database
