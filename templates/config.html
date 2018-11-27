@@ -5,7 +5,7 @@ ipsla_poller.py is going to use to poll for data  -->
 
 {% block content %}
     <!-- Check if there is data in the ipsla_polling table of the database -->
-    {% if all_rows|length == 0 %}
+    {% if empty %}
         <div class="row">
             <div class="col-12">
                 <h2 class="text-center mt-3">No IP Sla's in the Polling Database</h2>
@@ -43,15 +43,15 @@ ipsla_poller.py is going to use to poll for data  -->
                         </thead>
                         <!-- Table body -->
                         <tbody>
-                            {% for i in range(0, all_rows|length) %}
+                            {% for key,value in all_rows.iterrows() %}
                                 <tr>
-                                    <td class="text-center"><input type="checkbox" class="form-check-input ml-auto" name="selection" id="id_{{ all_rows[i][0] }}" value="{{ all_rows[i][0] }}"></td>
-                                    <th class="text-center" scope="row">{{ all_rows[i][0] }}</th>
-                                    <th class="text-center" scope="row">{{ all_rows[i][1] }}</th>
-                                    <th class="text-center" scope="row">{{ all_rows[i][2] }}</th>
-                                    <th class="text-center" scope="row">{{ types_names[all_rows[i][3]|int] }}</th>
-                                    <th class="text-center" scope="row">{{ all_rows[i][4] }}</th>
-                                    <th class="text-center" scope="row">{{ all_rows[i][5] }}</th>
+                                    <td class="text-center"><input type="checkbox" class="form-check-input ml-auto" name="selection" id="id_{{ value['id'] }}" value="{{ value['id'] }}"></td>
+                                    <th class="text-center" scope="row">{{ value['id'] }}</th>
+                                    <th class="text-center" scope="row">{{ value['hostname'] }}</th>
+                                    <th class="text-center" scope="row">{{ value['ipsla_index'] }}</th>
+                                    <th class="text-center" scope="row">{{ types_names[value['ipsla_type']|int] }}</th>
+                                    <th class="text-center" scope="row">{{ value['ipsla_tag'] }}</th>
+                                    <th class="text-center" scope="row">{{ value['snmp_version'] }}</th>
                                 </tr>
                             {% endfor %}
                         </tbody>

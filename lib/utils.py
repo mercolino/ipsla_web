@@ -4,6 +4,7 @@ import sqlite3
 import pandas as pd
 import pymongo
 from bson.objectid import ObjectId
+from datetime import datetime
 
 
 cons_ipsla_types = ['padding',
@@ -74,6 +75,22 @@ cons_ipsla_oper_sense = ['other',
                          'statsRetrieveAuthFail',
                          'statsRetrieveFormatError',
                          'statsRetrievePortInUse']
+
+
+def iterator2dataframes(iterator, chunk_size: int):
+    """Turn an iterator into multiple small pandas.DataFrame
+    This is a balance between memory and efficiency
+    """
+    records = []
+    frames = []
+    for i, record in enumerate(iterator):
+        records.append(record)
+        if i % chunk_size == chunk_size - 1:
+            frames.append(pd.DataFrame(records))
+            records = []
+    if records:
+        frames.append(pd.DataFrame(records))
+    return pd.concat(frames) if frames else pd.DataFrame()
 
 
 # Function to query the host to gather the ip sla's, return three lists indexes, type and tags
@@ -282,13 +299,10 @@ def grab_all_polls():
     if config['db'].lower() == 'sqlite':
         db = sqlite3.connect('db/' + config['db_name'].lower() + '.db')
         cursor = db.cursor()
-        try:
-            cursor.execute(
-                '''SELECT * FROM ipsla_polling''')
-            all_rows = cursor.fetchall()
-        except sqlite3.OperationalError:
-            all_rows = []
-        db.commit()
+
+        sql = '''SELECT * FROM ipsla_polling'''
+        all_rows = pd.read_sql_query(sql, db)
+
         db.close()
 
         return all_rows
@@ -309,18 +323,9 @@ def grab_all_polls():
         col = db['ipsla_polling']
 
         query = col.find()
-        if query.count() == 0:
-            all_rows = []
-        else:
-            all_rows = []
-            for d in query:
-                doc = []
-                for e in d:
-                    if e == '_id':
-                        doc.append(str(d[e]))
-                    else:
-                        doc.append(d[e])
-                all_rows.append(doc)
+
+        all_rows = iterator2dataframes(query, 10000)
+        all_rows.rename(columns={'_id': 'id'}, inplace=True)
 
         client.close()
 
@@ -515,5 +520,46 @@ def grab_graph_data(hostname, ipsla, sd, ed, a):
         return ipsla_type, df
 
     elif config['db'].lower() == 'mongodb':
-        # TODO: Mongo DB section to retrieve data, consider datetime as datetime. consider odo to load into pandas
-        print("mongodb still not supported")
+
+        # Create Url to connect to mongo database
+        url = "mongodb://{username}:{password}@{host}:{port}".format(
+            username=config['mongo']['username'],
+            password=config['mongo']['password'],
+            host=config['mongo']['host'],
+            port=config['mongo']['port']
+        )
+        # Create conenction
+        client = pymongo.MongoClient(url)
+        # Create database
+        db = client[config['db_name']]
+        # Create Collection
+        col = db['ipsla_polling']
+
+        ipsla_type = col.find_one({'hostname': hostname, 'ipsla_index': ipsla}, {'_id': 0, 'ipsla_index': 1})['ipsla_index']
+        ipsla_type = cons_ipsla_types[int(ipsla_type)]
+
+        col = db[ipsla_type]
+        sd = datetime.strptime(sd, "%Y-%m-%d %H:%M:%S")
+        ed = datetime.strptime(ed, "%Y-%m-%d %H:%M:%S")
+        query = {'$and': [
+            {'hostname': hostname},
+            {'ipsla_index': ipsla},
+            {'datetime': {
+                '$gte': sd, '$lt': ed
+            }}
+        ]}
+
+        df = iterator2dataframes(col.find(query, {'_id': 0, 'datetime': 1, 'latest_rtt': 1}), 10000)
+
+        client.close()
+
+        # Convert latest_rtt strings to numeric
+        df['latest_rtt'] = pd.to_numeric(df['latest_rtt'])
+
+        # Assign Index
+        df.set_index('datetime', inplace=True)
+
+        if a != '':
+            df = df.resample(a).mean()
+
+        return ipsla_type, df

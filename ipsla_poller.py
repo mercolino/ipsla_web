@@ -7,6 +7,7 @@ from ipaddress import IPv4Address
 from datetime import datetime, timedelta
 import sqlite3
 import sys
+import pymongo
 
 
 def ipsla_worker(poll_q, ipsla_q):
@@ -182,8 +183,78 @@ def db_worker(ipsla_q):
             print('##########################################\n' * 3)
 
         elif config['db'].lower() == 'mongodb':
-            # TODO: Insert data in mongodb, datetime should be datetime
-            print("mongodb still not supported")
+
+            # Create Url to connect to mongo database
+            url = "mongodb://{username}:{password}@{host}:{port}".format(
+                username=config['mongo']['username'],
+                password=config['mongo']['password'],
+                host=config['mongo']['host'],
+                port=config['mongo']['port']
+            )
+            # Create conenction
+            client = pymongo.MongoClient(url)
+            # Create database
+            db = client[config['db_name']]
+            # Create Collection
+            col = db[cons_ipsla_types[int(ipsla_processed['type'])]]
+
+            diff = int(ipsla_processed['sysuptime']) - int(ipsla_processed[key])
+            converted_ticks = datetime.now() - timedelta(seconds=diff / 100)
+
+            doc = [
+                {'hostname': ipsla_processed['hostname']},
+                {'ipsla_index': ipsla_processed['ipsla_index']},
+                {'type': ipsla_processed['type']},
+                {'threshold': ipsla_processed['threshold']},
+                {'timeout': ipsla_processed['timeout']},
+                {'frequency': ipsla_processed['frequency']},
+                {'tag': ipsla_processed['tag']},
+                {'target_address': str(IPv4Address(ipsla_processed['target_address'].encode('latin-1')))},
+                {'source_address': str(IPv4Address(ipsla_processed['source_address'].encode('latin-1')))},
+                {'latest_rtt': ipsla_processed['latest_rtt']},
+                {'return_code': ipsla_processed['return_code']},
+                {'time': ipsla_processed['time']},
+            ]
+
+            query = col.find(
+                {'$and': doc},
+                {
+                    '_id': 1
+                }
+            )
+
+            if query.count() == 0:
+                doc = {
+                    'hostname': ipsla_processed['hostname'],
+                    'ipsla_index': ipsla_processed['ipsla_index'],
+                    'sysuptime': ipsla_processed['sysuptime'],
+                    'type': ipsla_processed['type'],
+                    'threshold': ipsla_processed['threshold'],
+                    'timeout': ipsla_processed['timeout'],
+                    'frequency': ipsla_processed['frequency'],
+                    'tag': ipsla_processed['tag'],
+                    'target_address': str(IPv4Address(ipsla_processed['target_address'].encode('latin-1'))),
+                    'source_address': str(IPv4Address(ipsla_processed['source_address'].encode('latin-1'))),
+                    'latest_rtt': ipsla_processed['latest_rtt'],
+                    'return_code': ipsla_processed['return_code'],
+                    'time': ipsla_processed['time'],
+                    'datetime': converted_ticks
+                }
+                col.insert(doc)
+
+            client.close()
+
+            for key in ipsla_processed:
+                if key == 'target_address' or key == 'source_address':
+                    print("key: {key}, value: {value}".format(key=key,
+                                                              value=IPv4Address(
+                                                                  ipsla_processed[key].encode('latin-1'))))
+                else:
+                    print("key: {key}, value: {value}".format(key=key, value=ipsla_processed[key]))
+
+            print("key: 'datetime', value: {value}".format(key=key,
+                                                      value=converted_ticks.strftime("%Y-%m-%d %H:%M:%S")))
+
     return
 
 

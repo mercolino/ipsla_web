@@ -21,10 +21,13 @@ def serve_layout():
     for host in hosts:
         host_dropdown.append({'label': host[0], 'value': host[0]})
 
-    ipslas = grab_ipslas(host_dropdown[0]['value'])
-    ipsla_dropdown = []
-    for ipsla in ipslas:
-        ipsla_dropdown.append({'label': ipsla[0] + ' ( ' + ipsla[1] + ' )', 'value': ipsla[0]})
+    if len(host_dropdown) == 0:
+        ipsla_dropdown = []
+    else:
+        ipslas = grab_ipslas(host_dropdown[0]['value'])
+        ipsla_dropdown = []
+        for ipsla in ipslas:
+            ipsla_dropdown.append({'label': ipsla[0] + ' ( ' + ipsla[1] + ' )', 'value': ipsla[0]})
 
     layout = html.Div(children=[
         html.Div([
@@ -161,7 +164,7 @@ app_dash = dash.Dash(__name__, server=app, url_base_pathname='/dashboard/')
 app_dash.config['suppress_callback_exceptions'] = True
 app_dash.css.append_css({'external_url': '/static/css/bootstrap.css'})
 
-app_dash.layout = serve_layout()
+app_dash.layout = serve_layout
 
 
 # Function to populate the ipsla dropdown depending on the host selected
@@ -601,8 +604,13 @@ def config():
     # query all rows in the polling table of the database
     all_rows = grab_all_polls()
 
+    if all_rows.empty:
+        empty = True
+    else:
+        empty = False
+
     # Render page
-    return render_template('config.html', all_rows=all_rows, types_names=cons_ipsla_types)
+    return render_template('config.html', empty=empty, all_rows=all_rows, types_names=cons_ipsla_types)
 
 
 # Function to search for IP Sla's
