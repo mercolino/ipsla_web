@@ -19,7 +19,7 @@ number_of_db_processes: 1
 db: sqlite
 
 # Database name
-db_name: ipsla.db
+db_name: ipsla
 
 # SNMP variables
 snmp:
@@ -32,7 +32,5 @@ snmp:
 mongo:
   host: 127.0.0.1
   port: 27017
-  username: username
-  password: password
-  database: ipsla_data
-  collection: host_ipsla-id
+  username: ipsla
+  password: ipsla

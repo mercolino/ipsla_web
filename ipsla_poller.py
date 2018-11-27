@@ -118,7 +118,7 @@ def db_worker(ipsla_q):
         # Check type of Database is used
         if config['db'].lower() == 'sqlite':
             # Create sqlite object
-            db = sqlite3.connect('db/' + config['db_name'].lower())
+            db = sqlite3.connect('db/' + config['db_name'].lower() + '.db')
             cursor = db.cursor()
             # Create sql to create table based on the keys of the ipsla template
             sql = 'CREATE TABLE IF NOT EXISTS ' + cons_ipsla_types[int(ipsla_processed['type'])] + ' ( id INTEGER PRIMARY KEY, '
@@ -182,6 +182,7 @@ def db_worker(ipsla_q):
             print('##########################################\n' * 3)
 
         elif config['db'].lower() == 'mongodb':
+            # TODO: Insert data in mongodb, datetime should be datetime
             print("mongodb still not supported")
     return
 

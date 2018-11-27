@@ -5,7 +5,7 @@ import datetime
 
 SAMPLES = 100000
 
-db = sqlite3.connect('C:\Users\merco\PycharmProjects\ipsla_web\db\ipsla.db')
+db = sqlite3.connect('/home/mercolino/PycharmProjects/ipsla_web/db/ipsla.db')
 cursor = db.cursor()
 
 

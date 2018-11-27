@@ -1,3 +1,4 @@
+bson
 pandas
 wtforms
 easysnmp
@@ -8,3 +9,4 @@ dash
 flask-wtf
 flask
 PyYAML
+pymongo

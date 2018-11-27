@@ -101,6 +101,8 @@ def serve_layout():
                         {'label': 'Monthly', 'value': 'M'},
                     ],
                     value='',
+                    searchable=False,
+                    clearable=False,
                     id='averages',
                 ),
             ], className='col-2'),

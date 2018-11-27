@@ -2,6 +2,8 @@ from easysnmp import Session, EasySNMPTimeoutError, EasySNMPConnectionError, Eas
 import yaml
 import sqlite3
 import pandas as pd
+import pymongo
+from bson.objectid import ObjectId
 
 
 cons_ipsla_types = ['padding',
@@ -145,7 +147,7 @@ def create_polling():
 
     # Check type of Database is used
     if config['db'].lower() == 'sqlite':
-        db = sqlite3.connect('db/' + config['db_name'].lower())
+        db = sqlite3.connect('db/' + config['db_name'].lower() + '.db')
         cursor = db.cursor()
         cursor.execute('''
                     CREATE TABLE IF NOT EXISTS ipsla_polling( id INTEGER PRIMARY KEY, hostname TEXT, ipsla_index TEXT,
@@ -156,7 +158,21 @@ def create_polling():
         db.commit()
         db.close()
     elif config['db'].lower() == 'mongodb':
-        print("mongodb still not supported")
+        # Create Url to connect to mongo database
+        url = "mongodb://{username}:{password}@{host}:{port}".format(
+            username=config['mongo']['username'],
+            password=config['mongo']['password'],
+            host=config['mongo']['host'],
+            port=config['mongo']['port']
+        )
+        # Create conenction
+        client = pymongo.MongoClient(url)
+        # Create database
+        db = client[config['db_name']]
+        #Create Collection
+        col = db['ipsla_polling']
+
+        client.close()
 
 
 # Function to insert polling data in the database
@@ -169,7 +185,7 @@ def insert_polling_data(selection, ipsla_indexes, snmp_data, ipsla_types, ipsla_
 
     # Check type of Database is used
     if config['db'].lower() == 'sqlite':
-        db = sqlite3.connect('db/' + config['db_name'].lower())
+        db = sqlite3.connect('db/' + config['db_name'].lower() + '.db')
         cursor = db.cursor()
 
         # Insert data selected on the database
@@ -203,7 +219,55 @@ def insert_polling_data(selection, ipsla_indexes, snmp_data, ipsla_types, ipsla_
         return message, message_category
 
     elif config['db'].lower() == 'mongodb':
-        print("mongodb still not supported")
+        # Create Url to connect to mongo database
+        url = "mongodb://{username}:{password}@{host}:{port}".format(
+            username=config['mongo']['username'],
+            password=config['mongo']['password'],
+            host=config['mongo']['host'],
+            port=config['mongo']['port']
+        )
+        # Create conenction
+        client = pymongo.MongoClient(url)
+        # Create database
+        db = client[config['db_name']]
+        # Create Collection
+        col = db['ipsla_polling']
+
+        # Insert data selected on the database
+        for s in selection:
+            i = ipsla_indexes.index(s)
+            # Check first if the combination hostname ipsla index is not present on the database
+            query = col.find(
+                {'$and': [
+                    {'hostname': snmp_data['hostname']},
+                    {'ipsla_index': s}
+                ]},
+                {
+                    '_id': 1
+                }
+            )
+            if query.count() == 0:
+                doc = {
+                    'hostname': snmp_data['hostname'],
+                    'ipsla_index': s,
+                    'ipsla_type': ipsla_types[i],
+                    'ipsla_tag': ipsla_tags[i],
+                    'snmp_version': snmp_data['version'],
+                    'snmp_community': snmp_data['community'],
+                    'snmp_security_level': '' if snmp_data['security_level'] == "Choose..." else snmp_data['security_level'],
+                    'snmp_security_username': snmp_data['security_username'],
+                    'snmp_auth_protocol': '' if snmp_data['auth_protocol'] == "Choose..." else snmp_data['auth_protocol'],
+                    'snmp_auth_password': snmp_data['auth_password'],
+                    'snmp_priv_protocol': '' if snmp_data['privacy_protocol'] == "Choose..." else snmp_data['privacy_protocol'],
+                    'snmp_priv_password': snmp_data['privacy_password']
+                }
+                col.insert(doc)
+
+                message = 'Ip Sla\'s added to the polling database'
+                message_category = 'warning'
+
+        client.close()
+        return message, message_category
 
 
 # Function to grab all data on the polling database
@@ -216,7 +280,7 @@ def grab_all_polls():
 
     # Check type of Database is used
     if config['db'].lower() == 'sqlite':
-        db = sqlite3.connect('db/' + config['db_name'].lower())
+        db = sqlite3.connect('db/' + config['db_name'].lower() + '.db')
         cursor = db.cursor()
         try:
             cursor.execute(
@@ -230,7 +294,37 @@ def grab_all_polls():
         return all_rows
 
     elif config['db'].lower() == 'mongodb':
-        print("mongodb still not supported")
+        # Create Url to connect to mongo database
+        url = "mongodb://{username}:{password}@{host}:{port}".format(
+            username=config['mongo']['username'],
+            password=config['mongo']['password'],
+            host=config['mongo']['host'],
+            port=config['mongo']['port']
+        )
+        # Create conenction
+        client = pymongo.MongoClient(url)
+        # Create database
+        db = client[config['db_name']]
+        # Create Collection
+        col = db['ipsla_polling']
+
+        query = col.find()
+        if query.count() == 0:
+            all_rows = []
+        else:
+            all_rows = []
+            for d in query:
+                doc = []
+                for e in d:
+                    if e == '_id':
+                        doc.append(str(d[e]))
+                    else:
+                        doc.append(d[e])
+                all_rows.append(doc)
+
+        client.close()
+
+        return all_rows
 
 
 # Function to delete entries on the polling database
@@ -244,7 +338,7 @@ def delete_polls(selection):
     # Check type of Database is used
     if config['db'].lower() == 'sqlite':
         # TODO: Remove also data from the ip sla data table
-        db = sqlite3.connect('db/' + config['db_name'].lower())
+        db = sqlite3.connect('db/' + config['db_name'].lower() + '.db')
         cursor = db.cursor()
         # Remove all the ip sla's selected
         for s in selection:
@@ -258,7 +352,28 @@ def delete_polls(selection):
         return message, message_category
 
     elif config['db'].lower() == 'mongodb':
-        print("mongodb still not supported")
+        # Create Url to connect to mongo database
+        url = "mongodb://{username}:{password}@{host}:{port}".format(
+            username=config['mongo']['username'],
+            password=config['mongo']['password'],
+            host=config['mongo']['host'],
+            port=config['mongo']['port']
+        )
+        # Create conenction
+        client = pymongo.MongoClient(url)
+        # Create database
+        db = client[config['db_name']]
+        # Create Collection
+        col = db['ipsla_polling']
+
+        for s in selection:
+            cursor = col.delete_one({'_id': ObjectId(s)})
+
+        client.close()
+
+        message = 'Ip Sla\'s removed form the polling database'
+        message_category = 'warning'
+        return message, message_category
 
 
 # Function to grab the hosts from the poller database
@@ -271,7 +386,7 @@ def grab_hostnames():
 
     # Check type of Database is used
     if config['db'].lower() == 'sqlite':
-        db = sqlite3.connect('db/' + config['db_name'].lower())
+        db = sqlite3.connect('db/' + config['db_name'].lower() + '.db')
         cursor = db.cursor()
         try:
             cursor.execute(
@@ -285,7 +400,25 @@ def grab_hostnames():
         return all_rows
 
     elif config['db'].lower() == 'mongodb':
-        print("mongodb still not supported")
+        # Create Url to connect to mongo database
+        url = "mongodb://{username}:{password}@{host}:{port}".format(
+            username=config['mongo']['username'],
+            password=config['mongo']['password'],
+            host=config['mongo']['host'],
+            port=config['mongo']['port']
+        )
+        # Create conenction
+        client = pymongo.MongoClient(url)
+        # Create database
+        db = client[config['db_name']]
+        # Create Collection
+        col = db['ipsla_polling']
+
+        all_rows = col.find({}, {'_id': 0, 'hostname': 1}).distinct('hostname')
+
+        client.close()
+
+        return all_rows
 
 
 # Function to grab the ipsla's from a host from the poller database
@@ -298,7 +431,7 @@ def grab_ipslas(hostname):
 
     # Check type of Database is used
     if config['db'].lower() == 'sqlite':
-        db = sqlite3.connect('db/' + config['db_name'].lower())
+        db = sqlite3.connect('db/' + config['db_name'].lower() + '.db')
         cursor = db.cursor()
         try:
             cursor.execute(
@@ -312,7 +445,32 @@ def grab_ipslas(hostname):
         return all_rows
 
     elif config['db'].lower() == 'mongodb':
-        print("mongodb still not supported")
+        # Create Url to connect to mongo database
+        url = "mongodb://{username}:{password}@{host}:{port}".format(
+            username=config['mongo']['username'],
+            password=config['mongo']['password'],
+            host=config['mongo']['host'],
+            port=config['mongo']['port']
+        )
+        # Create conenction
+        client = pymongo.MongoClient(url)
+        # Create database
+        db = client[config['db_name']]
+        # Create Collection
+        col = db['ipsla_polling']
+
+        query = col.find({'hostname': '192.168.5.7'}, {'_id': 0, 'ipsla_index': 1, 'ipsla_tag': 1})
+
+        all_rows = []
+        for q in query:
+            doc = []
+            for d in q:
+                doc.append(q[d])
+            all_rows.append(doc)
+
+        client.close()
+
+        return all_rows
 
 
 # Function to grab the ipsla's from a host from the poller database
@@ -325,7 +483,7 @@ def grab_graph_data(hostname, ipsla, sd, ed, a):
 
     # Check type of Database is used
     if config['db'].lower() == 'sqlite':
-        db = sqlite3.connect('db/' + config['db_name'].lower())
+        db = sqlite3.connect('db/' + config['db_name'].lower() + '.db')
         cursor = db.cursor()
         try:
             cursor.execute(
@@ -357,4 +515,5 @@ def grab_graph_data(hostname, ipsla, sd, ed, a):
         return ipsla_type, df
 
     elif config['db'].lower() == 'mongodb':
+        # TODO: Mongo DB section to retrieve data, consider datetime as datetime. consider odo to load into pandas
         print("mongodb still not supported")
