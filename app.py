@@ -305,7 +305,7 @@ def graph(df_json):
                 animate=False,
                 figure={
                     'data': [
-                        {'x': dataframe.index, 'y': dataframe['latest_rtt'], 'type': 'line', 'name': 'rtt'},
+                        {'x': dataframe.index, 'y': dataframe['latest_rtt'], 'type': 'line', 'name': 'rtt', 'connectgaps': False},
                         {'x': dataframe.index, 'y': dataframe['min'], 'type': 'line', 'name': 'min', 'line':{'width': 0.5}},
                         {'x': dataframe.index, 'y': dataframe['avg'], 'type': 'line', 'name': 'avg', 'line':{'width': 0.5}},
                         {'x': dataframe.index, 'y': dataframe['max'], 'type': 'line', 'name': 'max', 'line':{'width': 0.5}},

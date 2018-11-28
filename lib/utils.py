@@ -501,7 +501,7 @@ def grab_graph_data(hostname, ipsla, sd, ed, a):
             return '', pd.DataFrame()
 
         # Querying database
-        sql = 'SELECT datetime, latest_rtt FROM ' + ipsla_type + ' WHERE hostname = \'' + hostname + '\' AND ipsla_index = \'' + ipsla + '\' AND datetime BETWEEN \'' + sd + '\' AND \'' + ed + '\' ORDER BY datetime ASC'
+        sql = 'SELECT datetime, latest_rtt, frequency FROM ' + ipsla_type + ' WHERE hostname = \'' + hostname + '\' AND ipsla_index = \'' + ipsla + '\' AND datetime BETWEEN \'' + sd + '\' AND \'' + ed + '\' ORDER BY datetime ASC'
         df = pd.read_sql_query(sql, db)
 
         # Convert Datetime strings to datetime
@@ -510,10 +510,25 @@ def grab_graph_data(hostname, ipsla, sd, ed, a):
         # Convert latest_rtt strings to numeric
         df['latest_rtt'] = pd.to_numeric(df['latest_rtt'])
 
+        # retrieve frequency
+        freq = df['frequency'].iloc[0]
+        # Drop frequency column
+        df.drop(['frequency'], axis=1, inplace=True)
+
+        # Grab real start date and end date of the series
+        sd = df['datetime'].iloc[0]
+        ed = df['datetime'].iloc[-1]
+
         # Assign Index
         df.set_index('datetime', inplace=True)
 
+        # Create data range series
+        dt = pd.date_range(sd, ed, freq=freq + 'S').to_series()
 
+        # Reindex dataframe
+        df = df.reindex(dt, method='nearest', tolerance='10S')
+
+        # Resample with averages if requested
         if a != '':
             df = df.resample(a).mean()
 
@@ -549,16 +564,32 @@ def grab_graph_data(hostname, ipsla, sd, ed, a):
             }}
         ]}
 
-        df = iterator2dataframes(col.find(query, {'_id': 0, 'datetime': 1, 'latest_rtt': 1}), 10000)
+        df = iterator2dataframes(col.find(query, {'_id': 0, 'datetime': 1, 'latest_rtt': 1, 'frequency': 1}), 10000)
 
         client.close()
 
         # Convert latest_rtt strings to numeric
         df['latest_rtt'] = pd.to_numeric(df['latest_rtt'])
 
+        # retrieve frequency
+        freq = df['frequency'].iloc[0]
+        # Drop frequency column
+        df.drop(['frequency'], axis=1, inplace=True)
+
+        # Grab real start date and end date of the series
+        sd = df['datetime'].iloc[0]
+        ed = df['datetime'].iloc[-1]
+
         # Assign Index
         df.set_index('datetime', inplace=True)
 
+        # Create data range series
+        dt = pd.date_range(sd, ed, freq=freq + 'S').to_series()
+
+        # Reindex dataframe
+        df = df.reindex(dt, method='nearest', tolerance='10S')
+
+        # Resample with averages if requested
         if a != '':
             df = df.resample(a).mean()
 
