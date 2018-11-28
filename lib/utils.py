@@ -76,6 +76,7 @@ cons_ipsla_oper_sense = ['other',
                          'statsRetrieveFormatError',
                          'statsRetrievePortInUse']
 
+# TODO: Add encryption to passwords in database
 
 def iterator2dataframes(iterator, chunk_size: int):
     """Turn an iterator into multiple small pandas.DataFrame
