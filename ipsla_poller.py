@@ -8,6 +8,34 @@ from datetime import datetime, timedelta
 import sqlite3
 import sys
 import pymongo
+import base64
+from Crypto.Cipher import AES
+from Crypto.Hash import SHA256
+from Crypto import Random
+import keyring
+
+
+def encrypt(key, source, encode=True):
+    key = SHA256.new(key).digest()  # use SHA-256 over our key to get a proper-sized AES key
+    IV = Random.new().read(AES.block_size)  # generate IV
+    encryptor = AES.new(key, AES.MODE_CBC, IV)
+    padding = AES.block_size - len(source) % AES.block_size  # calculate needed padding
+    source += bytes([padding]) * padding  # Python 2.x: source += chr(padding) * padding
+    data = IV + encryptor.encrypt(source)  # store the IV at the beginning and encrypt
+    return base64.b64encode(data).decode("latin-1") if encode else data
+
+
+def decrypt(key, source, decode=True):
+    if decode:
+        source = base64.b64decode(source.encode("latin-1"))
+    key = SHA256.new(key).digest()  # use SHA-256 over our key to get a proper-sized AES key
+    IV = source[:AES.block_size]  # extract the IV from the beginning
+    decryptor = AES.new(key, AES.MODE_CBC, IV)
+    data = decryptor.decrypt(source[AES.block_size:])  # decrypt
+    padding = data[-1]  # pick the padding value from the end; Python 2.x: ord(data[-1])
+    if data[-padding:] != bytes([padding]) * padding:  # Python 2.x: chr(padding) * padding
+        raise ValueError("Invalid padding...")
+    return data[:-padding]  # remove the padding
 
 
 def ipsla_worker(poll_q, ipsla_q):
@@ -16,6 +44,13 @@ def ipsla_worker(poll_q, ipsla_q):
     config = yaml.load(f)
 
     f.close()
+
+    # Retrieve Username
+    f = open('_usr.p', 'rb')
+    data = f.read().decode('ascii')
+    f.close()
+
+    encryption_key = data.encode('ascii')
 
     while poll_q.qsize() != 0:
         # Grabbing task from the poll queue
@@ -31,9 +66,9 @@ def ipsla_worker(poll_q, ipsla_q):
         snmp_security_level = poll[7]
         snmp_security_username = poll[8]
         snmp_auth_protocol = poll[9]
-        snmp_auth_password = poll[10]
+        snmp_auth_password = decrypt(encryption_key, poll[10]).decode('ascii')
         snmp_priv_protocol = poll[11]
-        snmp_priv_password = poll[12]
+        snmp_priv_password = decrypt(encryption_key, poll[12]).decode('ascii')
 
         # Open OID Template
         try:
@@ -276,8 +311,8 @@ if __name__ == "__main__":
             polls = grab_all_polls()
 
             # Load polls in the queue
-            for poll in polls:
-                poll_queue.put(poll)
+            for i in polls.index:
+                poll_queue.put(polls.iloc[i])
 
             # Launching all the SNMP Processes
             snmp_jobs = []

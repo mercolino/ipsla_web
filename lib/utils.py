@@ -5,6 +5,11 @@ import pandas as pd
 import pymongo
 from bson.objectid import ObjectId
 from datetime import datetime
+import keyring
+import base64
+from Crypto.Cipher import AES
+from Crypto.Hash import SHA256
+from Crypto import Random
 
 
 cons_ipsla_types = ['padding',
@@ -77,6 +82,30 @@ cons_ipsla_oper_sense = ['other',
                          'statsRetrievePortInUse']
 
 # TODO: Add encryption to passwords in database
+
+
+def encrypt(key, source, encode=True):
+    key = SHA256.new(key).digest()  # use SHA-256 over our key to get a proper-sized AES key
+    IV = Random.new().read(AES.block_size)  # generate IV
+    encryptor = AES.new(key, AES.MODE_CBC, IV)
+    padding = AES.block_size - len(source) % AES.block_size  # calculate needed padding
+    source += bytes([padding]) * padding  # Python 2.x: source += chr(padding) * padding
+    data = IV + encryptor.encrypt(source)  # store the IV at the beginning and encrypt
+    return base64.b64encode(data).decode("latin-1") if encode else data
+
+
+def decrypt(key, source, decode=True):
+    if decode:
+        source = base64.b64decode(source.encode("latin-1"))
+    key = SHA256.new(key).digest()  # use SHA-256 over our key to get a proper-sized AES key
+    IV = source[:AES.block_size]  # extract the IV from the beginning
+    decryptor = AES.new(key, AES.MODE_CBC, IV)
+    data = decryptor.decrypt(source[AES.block_size:])  # decrypt
+    padding = data[-1]  # pick the padding value from the end; Python 2.x: ord(data[-1])
+    if data[-padding:] != bytes([padding]) * padding:  # Python 2.x: chr(padding) * padding
+        raise ValueError("Invalid padding...")
+    return data[:-padding]  # remove the padding
+
 
 def iterator2dataframes(iterator, chunk_size: int):
     """Turn an iterator into multiple small pandas.DataFrame
@@ -201,6 +230,13 @@ def insert_polling_data(selection, ipsla_indexes, snmp_data, ipsla_types, ipsla_
 
     f.close()
 
+    # Retrieve Username
+    f = open('_usr.p', 'rb')
+    data = f.read().decode('ascii')
+    f.close()
+
+    encryption_key = data.encode('ascii')
+
     # Check type of Database is used
     if config['db'].lower() == 'sqlite':
         db = sqlite3.connect('db/' + config['db_name'].lower() + '.db')
@@ -214,6 +250,9 @@ def insert_polling_data(selection, ipsla_indexes, snmp_data, ipsla_types, ipsla_
                            (snmp_data['hostname'], s))
             exists = cursor.fetchone()
 
+            auth_password = encrypt(encryption_key, snmp_data['auth_password'].encode('ascii'))
+            privacy_password = encrypt(encryption_key, snmp_data['privacy_password'].encode('ascii'))
+
             # If no entry on the database then add it
             if exists is None:
                 cursor.execute('''INSERT INTO ipsla_polling(hostname, ipsla_index, ipsla_type, ipsla_tag, snmp_version,
@@ -224,9 +263,12 @@ def insert_polling_data(selection, ipsla_indexes, snmp_data, ipsla_types, ipsla_
                                 '' if snmp_data['security_level'] == "Choose..." else snmp_data['security_level'],
                                 snmp_data['security_username'],
                                 '' if snmp_data['auth_protocol'] == "Choose..." else snmp_data['auth_protocol'],
-                                snmp_data['auth_password'],
+                               auth_password,
                                 '' if snmp_data['privacy_protocol'] == "Choose..." else snmp_data['privacy_protocol'],
-                                snmp_data['privacy_password']))
+                                privacy_password))
+
+        print(auth_password)
+        print(privacy_password)
 
         db.commit()
         db.close()
