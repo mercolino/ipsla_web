@@ -527,7 +527,7 @@ def grab_graph_data(hostname, ipsla, sd, ed, a):
         dt = pd.date_range(sd, ed, freq=freq + 'S').to_series()
 
         # Reindex dataframe
-        df = df.reindex(dt, method='nearest', tolerance='10S')
+        df = df.reindex(dt, method='nearest', tolerance=str(int(freq)/2) + 'S')
 
         # Resample with averages if requested
         if a != '':
