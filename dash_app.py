@@ -30,38 +30,54 @@ def serve_layout():
             ipsla_dropdown.append({'label': ipsla[0] + ' ( ' + ipsla[1] + ' )', 'value': ipsla[0]})
 
     layout = html.Div(children=[
+
+        # Navbar
         html.Div([
             html.Div([
-            ], className='col-2'),
-
-            html.Div([
-                html.H1(children='Cisco Ip Sla'),
-            ], className='col-8 text-center'),
-
-            html.Div([
-                html.A(html.Button('Home', className='btn btn-primary'), href='/'),
-            ], className='col-2 text-center align-self-center'),
-        ], className='row bg-info'),
-
-        html.Div([
-            html.Div([
-            ], className='col-2'),
-
-            html.Div([
-                html.H2(children='Dashboard'),
-            ], className='col-8 text-center'),
-
-            html.Div([
-            ], className='col-2'),
+                html.Nav([
+                    # Adding Logo
+                    html.A([
+                        html.Img(src='/static/images/logo.png', style={'max-width': '40px',
+                                                                       'margin-top': '-10px',
+                                                                       'margin-right': '10px'}),
+                        'IP Sla'
+                    ], className='navbar-brand', href='#'),
+                    # Navigation Pills
+                    html.Ul([
+                        html.Li([
+                            html.A([
+                                'Home'
+                            ], className='nav-link', href='/'),
+                        ], className='nav-item'),
+                        html.Li([
+                            html.A([
+                                'Configuration'
+                            ], className='nav-link', href='/config'),
+                        ], className='nav-item'),
+                    ], className='navbar-nav nav-pills'),
+                    html.Ul([
+                        html.Li([
+                            html.A([
+                                'Dashboard'
+                            ], className='nav-link active', href='/'),
+                        ], className='nav-item'),
+                    ], className='navbar-nav nav-pills ml-auto'),
+                ], className='navbar navbar-expand-sm navbar-light', style={'background-color': '#e3f2fd'}),
+            ], className='col-12'),
         ], className='row'),
 
-        # Date Picker
+        html.Div([
+            html.Div([
+                html.H2(children='Dashboard'),
+            ], className='col-12 text-center'),
+        ], className='row'),
+
         # Date Picker
         html.Div([
             html.Div([
                 html.Label('Date Range')
             ], className='col-4'),
-        ], className='row mt-3'),
+        ], className='row'),
         html.Div([
             # Date Ranger Picker Component
             html.Div([
@@ -72,7 +88,7 @@ def serve_layout():
                     end_date=datetime.now().date()
                 ),
             ], className='col-4'),
-        ], className='row mb-3'),
+        ], className='row mb-1'),
 
         # Host and ipsla Dropdown
         html.Div([
@@ -91,7 +107,7 @@ def serve_layout():
                     id='ipsla',
                     options=ipsla_dropdown,
                 ),
-            ], className='col-2'),
+            ], className='col-3'),
             # Reserved Space
             html.Div([
                 html.Label('Averages'),
@@ -114,7 +130,7 @@ def serve_layout():
                 html.Button('Refresh', id='refresh_button', className='btn btn-success mr-2'),
                 html.Button('Add to Compare', id='add_compare_button', className='btn btn-warning mr-2'),
                 html.Button('Clear Comparison', id='clear_compare_button', className='btn btn-danger'),
-            ], className='col-6 align-self-end text-center'),
+            ], className='col-5 align-self-end text-center'),
         ], className='row'),
 
         # graph placeholder
