@@ -30,6 +30,41 @@
     </head>
 
     <header>
+        <!-- Creating navbar-->
+        <nav class="navbar navbar-expand-sm navbar-light" style="background-color: #e3f2fd;">
+            <div class="container-fluid">
+                <!-- Adding Logo -->
+                <a class="navbar-brand" href="#">
+                    <img style="max-width:40px; margin-top: -10px;" src="{{ url_for('static', filename='images/logo.png') }}">
+                    IP Sla
+                </a>
+                <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <!-- Adding the different navigation pills -->
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav nav-pills">
+                        <li class="nav-item">
+                            <a class="nav-link {{ pill_active[0] }}" href="{{ url_for('main') }}">
+                                Home
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{pill_active[1] }}" href="{{ url_for('config') }}">
+                                Configuration
+                            </a>
+                        </li>
+                    </ul>
+                    <ul class="navbar-nav nav-pills ml-auto">
+                        <li class="nav-item justify-content-end">
+                            <a class="nav-link" href="{{ url_for('dash') }}">
+                                Dashboard
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
     </header>
 
     <body>
@@ -44,22 +79,13 @@
         <!-- Creating Fluid Container -->
         <div class="container-fluid">
             <!-- Creating row with the Title -->
-            <div class="row bg-info">
-                <div class="col-2 text-center align-self-center">
-                    <a class="btn btn-primary" href="{{ url_for('dash') }}" role="button">Dashboard</a>
-                </div>
-                <div class="col-8 align-self-center">
-                    <h1 class="text-center">Cisco Ip Sla</h1>
-                </div>
-                <!-- Adding the navigation button, config when in home, home when in anything else -->
-                <div class="col-2 text-center align-self-center">
-                    {% if request.path == "/" %}
-                        <a class="btn btn-primary" href="{{ url_for('config') }}" role="button">Config</a>
-                    {% else %}
-                        <a class="btn btn-primary" href="{{ url_for('main') }}" role="button">Home</a>
-                    {% endif %}
+        {% if request.path == "/" %}
+            <div class="row">
+                <div class="col-12 align-self-center">
+                    <h1 class="text-center">Home for IP Sla application</h1>
                 </div>
             </div>
+        {% endif %}
             <!-- Flash Messages space for Flask -->
             <div class="row">
                 <div class="col-12">
