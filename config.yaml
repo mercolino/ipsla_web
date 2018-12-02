@@ -16,7 +16,7 @@ db_process_delay: 1
 number_of_db_processes: 1
 
 # Database to use, choices: sqlite, mongodb
-db: sqlite
+db: mongodb
 
 # Database name
 db_name: ipsla

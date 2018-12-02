@@ -9,9 +9,11 @@ import json
 from flask_app import app
 
 
-app_dash = dash.Dash(name='dash_app', sharing=True, server=app, url_base_pathname='/dashboard/')
+app_dash = dash.Dash(name='dash_app', sharing=True, server=app, url_base_pathname='/dashboard/',
+                     assets_external_path='/static/assets')
 app_dash.config['suppress_callback_exceptions'] = True
 app_dash.css.append_css({'external_url': '/static/css/bootstrap.css'})
+app_dash.css.append_css({'external_url': '/static/assets/custom.css'})
 
 
 def serve_layout():
@@ -133,14 +135,44 @@ def serve_layout():
             ], className='col-5 align-self-end text-center'),
         ], className='row'),
 
+        html.Div([
+            html.Div([
+                html.H3('Graph')
+            ], id='graph-title', className='col-12 text-center mt-3', style={'display': 'none'}),
+        ], className='row'),
+
         # graph placeholder
         html.Div([
-            html.Div(id='graph', className='col-12'),
+            html.Div([
+                dcc.Graph(
+                    id='graph_ipsla',
+                    animate=False,
+                ),
+            ], id='graph', className='col-12', style={'visibility': 'hidden'}),
+        ], className='row'),
+
+        html.Div([
+            html.Div([
+                html.H3('Statistics')
+            ], id='table-title', className='col-12 text-center mt-3', style={'display': 'none'}),
         ], className='row'),
 
         # table placeholder
         html.Div([
-            html.Div(id='table', className='col-12'),
+            html.Div([
+                dash_table.DataTable(
+                    id='ipsla_table',
+                    columns=[
+                        {'name': 'Data Range', 'id': "date_range"},
+                        {'name': 'Number of Points', 'id': "number_points"},
+                        {'name': 'Min rtt', 'id': "min_rtt"},
+                        {'name': 'Avg rtt', 'id': "avg_rtt"},
+                        {'name': 'Std Dev rtt', 'id': "std_rtt"},
+                        {'name': 'Max rtt', 'id': "max_rtt"},
+                    ],
+                    style_cell={'textAlign': 'center'},
+                )
+            ], id='table', className='col-12', style={'visibility': 'hidden'}),
         ], className='row'),
 
         html.Hr([], className='mt-5 mb-5'),
@@ -282,7 +314,31 @@ def save_relayout_state(r):
 
 
 # Function to graph the data
-@app_dash.callback(dash.dependencies.Output('graph', 'children'),
+@app_dash.callback(dash.dependencies.Output('graph-title', 'style'),
+                   [
+                       dash.dependencies.Input('shared-data', 'children'),
+                   ])
+def graph_title(df_json):
+    if df_json is not None:
+        return {}
+    else:
+        return {'display': 'none'}
+
+
+# Function to graph the data
+@app_dash.callback(dash.dependencies.Output('graph', 'style'),
+                   [
+                       dash.dependencies.Input('shared-data', 'children'),
+                   ])
+def graph_hide(df_json):
+    if df_json is not None:
+        return {'visibility': 'visible'}
+    else:
+        return {'visibility': 'hidden'}
+
+
+# Function to graph the data
+@app_dash.callback(dash.dependencies.Output('graph_ipsla', 'figure'),
                    [
                        dash.dependencies.Input('shared-data', 'children'),
                    ])
@@ -303,81 +359,167 @@ def graph(df_json):
         # Add max to the dataframe
         dataframe['max'] = dataframe['latest_rtt'].max()
 
-        return [
-            html.Div([
-                html.H3('Graph')
-            ], className='col-12 text-center mt-3'),
-            dcc.Graph(
-                id='graph_ipsla',
-                animate=False,
-                figure={
-                    'data': [
-                        {
-                            'x': dataframe.index,
-                            'y': dataframe['latest_rtt'],
-                            'type': 'line',
-                            'name': 'rtt',
-                            'connectgaps': False},
-                        {
-                            'x': dataframe.index,
-                            'y': dataframe['min'],
-                            'type': 'line',
-                            'name': 'min',
-                            'line':{'width': 0.5}
-                        },
-                        {
-                            'x': dataframe.index,
-                            'y': dataframe['avg'],
-                            'type': 'line',
-                            'name': 'avg',
-                            'line':{'width': 0.5}
-                        },
-                        {
-                            'x': dataframe.index,
-                            'y': dataframe['max'],
-                            'type': 'line',
-                            'name': 'max',
-                            'line':{'width': 0.5}
-                        },
-                    ],
-                    'layout': {
-                        'height': 600,
-                        'title': '{type} Ip Sla {ipsla} for host {host}'.format(
-                            type=ipsla_type[0].upper() + ipsla_type[1:],
-                            ipsla=i,
-                            host=h),
-                        'xaxis': {
-                            'title': 'DateTime',
-                            'autorange': True,
-                            'rangeselector': {
-                                'buttons': [
-                                    {'count': 15, 'label': '15m', 'step': 'minute', 'stepmode': 'backward'},
-                                    {'count': 30, 'label': '30m', 'step': 'minute', 'stepmode': 'backward'},
-                                    {'count': 1, 'label': '1h', 'step': 'hour', 'stepmode': 'backward'},
-                                    {'count': 1, 'label': '1d', 'step': 'day', 'stepmode': 'backward'},
-                                    {'count': 1, 'label': '1wk', 'step': 'week', 'stepmode': 'backward'},
-                                    {'count': 1, 'label': '1M', 'step': 'month', 'stepmode': 'backward'},
-                                    {'count': 1, 'label': '1y', 'step': 'year', 'stepmode': 'backward'},
-                                    {'step': 'all'}
-                                ]
-                            },
-                            'rangeslider': {'type': 'date', 'visible': True},
-                        },
-                        'yaxis': {'title': 'Milliseconds', 'autorange': True},
-                    }
-                }
-            ),
-        ]
+        return {
+            'data': [
+                {
+                    'x': dataframe.index,
+                    'y': dataframe['latest_rtt'],
+                    'type': 'line',
+                    'name': 'rtt',
+                    'connectgaps': False},
+                {
+                    'x': dataframe.index,
+                    'y': dataframe['min'],
+                    'type': 'line',
+                    'name': 'min',
+                    'line': {'width': 0.5}
+                },
+                {
+                    'x': dataframe.index,
+                    'y': dataframe['avg'],
+                    'type': 'line',
+                    'name': 'avg',
+                    'line': {'width': 0.5}
+                },
+                {
+                    'x': dataframe.index,
+                    'y': dataframe['max'],
+                    'type': 'line',
+                    'name': 'max',
+                    'line': {'width': 0.5}
+                },
+            ],
+            'layout': {
+                'height': 600,
+                'title': '{type} Ip Sla {ipsla} for host {host}'.format(
+                    type=ipsla_type[0].upper() + ipsla_type[1:],
+                    ipsla=i,
+                    host=h),
+                'xaxis': {
+                    'title': 'DateTime',
+                    'autorange': True,
+                    'rangeselector': {
+                        'buttons': [
+                            {'count': 15, 'label': '15m', 'step': 'minute', 'stepmode': 'backward'},
+                            {'count': 30, 'label': '30m', 'step': 'minute', 'stepmode': 'backward'},
+                            {'count': 1, 'label': '1h', 'step': 'hour', 'stepmode': 'backward'},
+                            {'count': 1, 'label': '1d', 'step': 'day', 'stepmode': 'backward'},
+                            {'count': 1, 'label': '1wk', 'step': 'week', 'stepmode': 'backward'},
+                            {'count': 1, 'label': '1M', 'step': 'month', 'stepmode': 'backward'},
+                            {'count': 1, 'label': '1y', 'step': 'year', 'stepmode': 'backward'},
+                            {'step': 'all'}
+                        ]
+                    },
+                    'rangeslider': {'type': 'date', 'visible': True},
+                },
+                'yaxis': {'title': 'Milliseconds', 'autorange': True},
+            }
+        }
+    else:
+        return {}
 
 
 # Function to create the table
-@app_dash.callback(dash.dependencies.Output('table', 'children'),
+@app_dash.callback(dash.dependencies.Output('table-title', 'style'),
+                   [
+                       dash.dependencies.Input('shared-data', 'children')
+                   ])
+def table_title(df_json):
+    if df_json is not None:
+        return {}
+    else:
+        return {'display': 'none'}
+
+
+# Function to create the table
+@app_dash.callback(dash.dependencies.Output('table', 'style'),
                    [
                        dash.dependencies.Input('shared-data', 'children')
                    ])
 def table(df_json):
     if df_json is not None:
+        return {'visibility': 'visible'}
+    else:
+        return {'visibility': 'hidden'}
+
+
+# # Function to create the table
+# @app_dash.callback(dash.dependencies.Output('ipsla_table', 'data'),
+#                    [
+#                        dash.dependencies.Input('shared-data', 'children')
+#                    ])
+# def table(df_json):
+#     if df_json is not None:
+#         dataframe = pd.read_json(df_json)
+#
+#         # Add min to the dataframe
+#         minimum = dataframe['latest_rtt'].min()
+#
+#         # Add average to the dataframe
+#         avg = dataframe['latest_rtt'].mean()
+#
+#         # Add std to the dataframe
+#         std = dataframe['latest_rtt'].std()
+#
+#         # Add max to the dataframe
+#         maximum = dataframe['latest_rtt'].max()
+#
+#         return [
+#             {
+#                 'date_range': dataframe.index.min().strftime('%Y-%m-%d %H:%M:%S') + ' --> ' +
+#                               dataframe.index.max().strftime('%Y-%m-%d %H:%M:%S'),
+#                 'number_points': len(dataframe.index),
+#                 'min_rtt': minimum,
+#                 'avg_rtt': avg,
+#                 'std_rtt': std,
+#                 'max_rtt': maximum
+#             }
+#         ]
+#     else:
+#         return []
+
+
+# Callback to update the Table
+@app_dash.callback(dash.dependencies.Output('ipsla_table', 'data'),
+                   [
+                       dash.dependencies.Input('graph_ipsla', 'relayoutData'),
+                       dash.dependencies.Input('shared-data', 'children'),
+                   ],
+                   [
+                       dash.dependencies.State('relayout-data', 'children')
+                   ])
+def update_table(r, df_json, pr):
+
+    if df_json is not None:
+        if r is None:
+            return
+
+        dummy = ''
+
+        # Check if actual relayout is the same as teh previous one, if it is, something changed on other
+        # variables and need to reset calc.
+        if json.dumps(r) != pr:
+            for key in r:
+                if key == 'xaxis.range':
+                    dummy = key
+                    break
+                elif key == 'xaxis.range[0]':
+                    dummy = key
+                    break
+
         dataframe = pd.read_json(df_json)
+
+        if dummy == 'xaxis.range':
+            sd = pd.to_datetime(r['xaxis.range'][0])
+            ed = pd.to_datetime(r['xaxis.range'][1])
+            dataframe = dataframe.loc[(dataframe.index > sd) & (dataframe.index <= ed)]
+        elif dummy == 'xaxis.range[0]':
+            sd = pd.to_datetime(r['xaxis.range[0]'])
+            ed = pd.to_datetime(r['xaxis.range[1]'])
+            dataframe = dataframe.loc[(dataframe.index > sd) & (dataframe.index <= ed)]
+        else:
+            sd = dataframe.index.min()
+            ed = dataframe.index.max()
 
         # Add min to the dataframe
         minimum = dataframe['latest_rtt'].min()
@@ -385,105 +527,24 @@ def table(df_json):
         # Add average to the dataframe
         avg = dataframe['latest_rtt'].mean()
 
-        # Add std to the dataframe
+        # Add average to the dataframe
         std = dataframe['latest_rtt'].std()
 
         # Add max to the dataframe
         maximum = dataframe['latest_rtt'].max()
 
         return [
-            html.Div([
-                html.H3('Statistics')
-            ], className='col-12 text-center'),
-            dash_table.DataTable(
-                id='ipsla_table',
-                columns=[
-                    {'name': 'Data Range', 'id': "date_range"},
-                    {'name': 'Number of Points', 'id': "number_points"},
-                    {'name': 'Min rtt', 'id': "min_rtt"},
-                    {'name': 'Avg rtt', 'id': "avg_rtt"},
-                    {'name': 'Std Dev rtt', 'id': "std_rtt"},
-                    {'name': 'Max rtt', 'id': "max_rtt"},
-                ],
-                data=[
-                    {
-                        'date_range': dataframe.index.min().strftime('%Y-%m-%d %H:%M:%S') + ' --> ' +
-                                      dataframe.index.max().strftime('%Y-%m-%d %H:%M:%S'),
-                        'number_points': len(dataframe.index),
-                        'min_rtt': minimum,
-                        'avg_rtt': avg,
-                        'std_rtt': std,
-                        'max_rtt': maximum
-                    }
-                ],
-                style_cell={'textAlign': 'center'},
-            )
+            {
+                'date_range': sd.strftime('%Y-%m-%d %H:%M:%S') + ' --> ' + ed.strftime('%Y-%m-%d %H:%M:%S'),
+                'number_points': len(dataframe.index),
+                'min_rtt': minimum,
+                'avg_rtt': avg,
+                'std_rtt': std,
+                'max_rtt': maximum
+            }
         ]
-
-
-# Callback to update the Table
-@app_dash.callback(dash.dependencies.Output('ipsla_table', 'data'),
-                   [
-                       dash.dependencies.Input('graph_ipsla', 'relayoutData'),
-                   ],
-                   [
-                       dash.dependencies.State('shared-data', 'children'),
-                       dash.dependencies.State('relayout-data', 'children')
-                   ])
-def update_table(r, df_json, pr):
-
-    if r is None:
-        return
-
-    dummy = ''
-
-    # Check if actual relayout is the same as teh previous one, if it is, something changed on other
-    # variables and need to reset calc.
-    if json.dumps(r) != pr:
-        for key in r:
-            if key == 'xaxis.range':
-                dummy = key
-                break
-            elif key == 'xaxis.range[0]':
-                dummy = key
-                break
-
-    dataframe = pd.read_json(df_json)
-
-    if dummy == 'xaxis.range':
-        sd = pd.to_datetime(r['xaxis.range'][0])
-        ed = pd.to_datetime(r['xaxis.range'][1])
-        dataframe = dataframe.loc[(dataframe.index > sd) & (dataframe.index <= ed)]
-    elif dummy == 'xaxis.range[0]':
-        sd = pd.to_datetime(r['xaxis.range[0]'])
-        ed = pd.to_datetime(r['xaxis.range[1]'])
-        dataframe = dataframe.loc[(dataframe.index > sd) & (dataframe.index <= ed)]
     else:
-        sd = dataframe.index.min()
-        ed = dataframe.index.max()
-
-    # Add min to the dataframe
-    minimum = dataframe['latest_rtt'].min()
-
-    # Add average to the dataframe
-    avg = dataframe['latest_rtt'].mean()
-
-    # Add average to the dataframe
-    std = dataframe['latest_rtt'].std()
-
-    # Add max to the dataframe
-    maximum = dataframe['latest_rtt'].max()
-
-    return [
-        {
-            'date_range': sd.strftime('%Y-%m-%d %H:%M:%S') + ' --> ' + ed.strftime('%Y-%m-%d %H:%M:%S'),
-            'number_points': len(dataframe.index),
-            'min_rtt': minimum,
-            'avg_rtt': avg,
-            'std_rtt': std,
-            'max_rtt': maximum
-        }
-    ]
+        return []
 
 
 # Function to add to the dropdown the data for the comparison graph

@@ -1,5 +1,5 @@
 import yaml
-from multiprocessing import Process, current_process, Queue
+from multiprocessing import Process, Queue
 from easysnmp import Session, EasySNMPConnectionError, EasySNMPTimeoutError, EasySNMPUnknownObjectIDError
 from lib.utils import cons_ipsla_types, grab_all_polls
 import time
@@ -12,7 +12,6 @@ import base64
 from Crypto.Cipher import AES
 from Crypto.Hash import SHA256
 from Crypto import Random
-import keyring
 
 
 def encrypt(key, source, encode=True):
@@ -232,6 +231,9 @@ def db_worker(ipsla_q):
             db = client[config['db_name']]
             # Create Collection
             col = db[cons_ipsla_types[int(ipsla_processed['type'])]]
+
+            # Create datetime index
+            col.create_index([("datetime", pymongo.DESCENDING)], background=True)
 
             diff = int(ipsla_processed['sysuptime']) - int(ipsla_processed[key])
             converted_ticks = datetime.now() - timedelta(seconds=diff / 100)

@@ -5,7 +5,6 @@ import pandas as pd
 import pymongo
 from bson.objectid import ObjectId
 from datetime import datetime
-import keyring
 import base64
 from Crypto.Cipher import AES
 from Crypto.Hash import SHA256
@@ -216,7 +215,7 @@ def create_polling():
         client = pymongo.MongoClient(url)
         # Create database
         db = client[config['db_name']]
-        #Create Collection
+        # Create Collection
         col = db['ipsla_polling']
 
         client.close()
@@ -307,6 +306,9 @@ def insert_polling_data(selection, ipsla_indexes, snmp_data, ipsla_types, ipsla_
                 }
             )
             if query.count() == 0:
+                auth_password = encrypt(encryption_key, snmp_data['auth_password'].encode('ascii'))
+                privacy_password = encrypt(encryption_key, snmp_data['privacy_password'].encode('ascii'))
+
                 doc = {
                     'hostname': snmp_data['hostname'],
                     'ipsla_index': s,
@@ -317,9 +319,9 @@ def insert_polling_data(selection, ipsla_indexes, snmp_data, ipsla_types, ipsla_
                     'snmp_security_level': '' if snmp_data['security_level'] == "Choose..." else snmp_data['security_level'],
                     'snmp_security_username': snmp_data['security_username'],
                     'snmp_auth_protocol': '' if snmp_data['auth_protocol'] == "Choose..." else snmp_data['auth_protocol'],
-                    'snmp_auth_password': snmp_data['auth_password'],
+                    'snmp_auth_password': auth_password,
                     'snmp_priv_protocol': '' if snmp_data['privacy_protocol'] == "Choose..." else snmp_data['privacy_protocol'],
-                    'snmp_priv_password': snmp_data['privacy_password']
+                    'snmp_priv_password': privacy_password
                 }
                 col.insert(doc)
 
@@ -462,9 +464,13 @@ def grab_hostnames():
         # Create Collection
         col = db['ipsla_polling']
 
-        all_rows = col.find({}, {'_id': 0, 'hostname': 1}).distinct('hostname')
+        query = col.find({}, {'_id': 0, 'hostname': 1}).distinct('hostname')
 
         client.close()
+
+        all_rows = []
+        for q in query:
+            all_rows.append((q,))
 
         return all_rows
 
@@ -507,7 +513,7 @@ def grab_ipslas(hostname):
         # Create Collection
         col = db['ipsla_polling']
 
-        query = col.find({'hostname': '192.168.5.7'}, {'_id': 0, 'ipsla_index': 1, 'ipsla_tag': 1})
+        query = col.find({'hostname': hostname}, {'_id': 0, 'ipsla_index': 1, 'ipsla_tag': 1})
 
         all_rows = []
         for q in query:
@@ -593,7 +599,11 @@ def grab_graph_data(hostname, ipsla, sd, ed, a):
         # Create Collection
         col = db['ipsla_polling']
 
-        ipsla_type = col.find_one({'hostname': hostname, 'ipsla_index': ipsla}, {'_id': 0, 'ipsla_index': 1})['ipsla_index']
+        try:
+            ipsla_type = col.find_one({'hostname': hostname, 'ipsla_index': ipsla}, {'_id': 0, 'ipsla_type': 1})['ipsla_type']
+        except:
+            return '', pd.DataFrame()
+
         ipsla_type = cons_ipsla_types[int(ipsla_type)]
 
         col = db[ipsla_type]
@@ -607,7 +617,11 @@ def grab_graph_data(hostname, ipsla, sd, ed, a):
             }}
         ]}
 
-        df = iterator2dataframes(col.find(query, {'_id': 0, 'datetime': 1, 'latest_rtt': 1, 'frequency': 1}), 10000)
+        try:
+            query_data = col.find(query, {'_id': 1, 'datetime': 1, 'latest_rtt': 1, 'frequency': 1}).sort('datetime', pymongo.ASCENDING)
+        except:
+            return '', pd.DataFrame()
+        df = iterator2dataframes(query_data, 10000)
 
         client.close()
 
@@ -618,6 +632,9 @@ def grab_graph_data(hostname, ipsla, sd, ed, a):
         freq = df['frequency'].iloc[0]
         # Drop frequency column
         df.drop(['frequency'], axis=1, inplace=True)
+
+        # Drop _id column
+        df.drop(['_id'], axis=1, inplace=True)
 
         # Grab real start date and end date of the series
         sd = df['datetime'].iloc[0]
