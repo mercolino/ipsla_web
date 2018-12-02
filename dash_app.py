@@ -313,25 +313,25 @@ def save_relayout_state(r):
     return json.dumps(r)
 
 
-# Function to graph the data
+# Function to show the graph title
 @app_dash.callback(dash.dependencies.Output('graph-title', 'style'),
                    [
-                       dash.dependencies.Input('shared-data', 'children'),
+                       dash.dependencies.Input('graph_ipsla', 'figure'),
                    ])
-def graph_title(df_json):
-    if df_json is not None:
+def graph_title(fig):
+    if bool(fig):
         return {}
     else:
         return {'display': 'none'}
 
 
-# Function to graph the data
+# Function to show the graph
 @app_dash.callback(dash.dependencies.Output('graph', 'style'),
                    [
-                       dash.dependencies.Input('shared-data', 'children'),
+                       dash.dependencies.Input('graph_ipsla', 'figure'),
                    ])
-def graph_hide(df_json):
-    if df_json is not None:
+def show_graph(fig):
+    if bool(fig):
         return {'visibility': 'visible'}
     else:
         return {'visibility': 'hidden'}
@@ -419,67 +419,31 @@ def graph(df_json):
         return {}
 
 
-# Function to create the table
+# Function to show table title
 @app_dash.callback(dash.dependencies.Output('table-title', 'style'),
                    [
-                       dash.dependencies.Input('shared-data', 'children')
+                       dash.dependencies.Input('graph_ipsla', 'figure')
                    ])
-def table_title(df_json):
-    if df_json is not None:
+def table_title(fig):
+    if bool(fig):
         return {}
     else:
         return {'display': 'none'}
 
 
-# Function to create the table
+# Function to showthe table
 @app_dash.callback(dash.dependencies.Output('table', 'style'),
                    [
-                       dash.dependencies.Input('shared-data', 'children')
+                       dash.dependencies.Input('graph_ipsla', 'figure')
                    ])
-def table(df_json):
-    if df_json is not None:
+def show_table(fig):
+    if bool(fig):
         return {'visibility': 'visible'}
     else:
         return {'visibility': 'hidden'}
 
 
-# # Function to create the table
-# @app_dash.callback(dash.dependencies.Output('ipsla_table', 'data'),
-#                    [
-#                        dash.dependencies.Input('shared-data', 'children')
-#                    ])
-# def table(df_json):
-#     if df_json is not None:
-#         dataframe = pd.read_json(df_json)
-#
-#         # Add min to the dataframe
-#         minimum = dataframe['latest_rtt'].min()
-#
-#         # Add average to the dataframe
-#         avg = dataframe['latest_rtt'].mean()
-#
-#         # Add std to the dataframe
-#         std = dataframe['latest_rtt'].std()
-#
-#         # Add max to the dataframe
-#         maximum = dataframe['latest_rtt'].max()
-#
-#         return [
-#             {
-#                 'date_range': dataframe.index.min().strftime('%Y-%m-%d %H:%M:%S') + ' --> ' +
-#                               dataframe.index.max().strftime('%Y-%m-%d %H:%M:%S'),
-#                 'number_points': len(dataframe.index),
-#                 'min_rtt': minimum,
-#                 'avg_rtt': avg,
-#                 'std_rtt': std,
-#                 'max_rtt': maximum
-#             }
-#         ]
-#     else:
-#         return []
-
-
-# Callback to update the Table
+# Callback to create/update the Table
 @app_dash.callback(dash.dependencies.Output('ipsla_table', 'data'),
                    [
                        dash.dependencies.Input('graph_ipsla', 'relayoutData'),
@@ -488,7 +452,7 @@ def table(df_json):
                    [
                        dash.dependencies.State('relayout-data', 'children')
                    ])
-def update_table(r, df_json, pr):
+def table(r, df_json, pr):
 
     if df_json is not None:
         if r is None:
