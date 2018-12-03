@@ -64,7 +64,7 @@ def serve_layout():
                             ], className='nav-link active', href='/'),
                         ], className='nav-item'),
                     ], className='navbar-nav nav-pills ml-auto'),
-                ], className='navbar fixed-top navbar-expand-sm navbar-light', style={'background-color': '#e3f2fd'}),
+                ], className='navbar navbar-shadow fixed-top navbar-expand-sm navbar-light', style={'background-color': '#e3f2fd'}),
             ], className='col-12'),
         ], className='row'),
 

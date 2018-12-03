@@ -14,6 +14,8 @@
         <link href="{{ url_for('static', filename='css/bootstrap.css') }}" rel="stylesheet">
         <!-- css for datatables, the navigation bars for tables -->
         <link href="{{ url_for('static', filename='css/datatables.css') }}" rel="stylesheet" type="text/css">
+        <!-- Custom css-->
+        <link href="{{ url_for('static', filename='assets/custom.css') }}" rel="stylesheet" type="text/css">
         <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
         <script src="{{ url_for('static', filename='js/jquery-3.3.1.min.js') }}"></script>
         <!-- popper (necessary for Bootstrap's JavaScript plugins) -->
@@ -31,7 +33,7 @@
 
     <header>
         <!-- Creating navbar-->
-        <nav class="navbar fixed-top navbar-expand-sm navbar-light" style="background-color: #e3f2fd;">
+        <nav class="navbar navbar-shadow fixed-top navbar-expand-sm navbar-light" style="background-color: #e3f2fd;">
             <div class="container-fluid">
                 <!-- Adding Logo -->
                 <a class="navbar-brand" href="#">
