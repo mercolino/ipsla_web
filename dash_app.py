@@ -64,141 +64,142 @@ def serve_layout():
                             ], className='nav-link active', href='/'),
                         ], className='nav-item'),
                     ], className='navbar-nav nav-pills ml-auto'),
-                ], className='navbar navbar-expand-sm navbar-light', style={'background-color': '#e3f2fd'}),
+                ], className='navbar fixed-top navbar-expand-sm navbar-light', style={'background-color': '#e3f2fd'}),
             ], className='col-12'),
         ], className='row'),
 
         html.Div([
             html.Div([
-                html.H2(children='Dashboard'),
-            ], className='col-12 text-center'),
-        ], className='row'),
+                html.Div([
+                    html.H2(children='Dashboard'),
+                ], className='col-12 text-center'),
+            ], className='row'),
 
-        # Date Picker
-        html.Div([
+            # Date Picker
             html.Div([
-                html.Label('Date Range')
-            ], className='col-4'),
-        ], className='row'),
-        html.Div([
-            # Date Ranger Picker Component
+                html.Div([
+                    html.Label('Date Range')
+                ], className='col-4'),
+            ], className='row'),
             html.Div([
-                dcc.DatePickerRange(
-                    id='date-picker-range',
-                    initial_visible_month=datetime.now().date(),
-                    start_date=datetime.now().date(),
-                    end_date=datetime.now().date()
-                ),
-            ], className='col-4'),
-        ], className='row mb-1'),
+                # Date Ranger Picker Component
+                html.Div([
+                    dcc.DatePickerRange(
+                        id='date-picker-range',
+                        initial_visible_month=datetime.now().date(),
+                        start_date=datetime.now().date(),
+                        end_date=datetime.now().date()
+                    ),
+                ], className='col-4'),
+            ], className='row mb-1'),
 
-        # Host and ipsla Dropdown
-        html.Div([
-            # Host Dropdown
+            # Host and ipsla Dropdown
             html.Div([
-                html.Label('Host'),
-                dcc.Dropdown(
-                    id='host',
-                    options=host_dropdown,
-                ),
-            ], className='col-2'),
-            # IP Sla Dropdown
+                # Host Dropdown
+                html.Div([
+                    html.Label('Host'),
+                    dcc.Dropdown(
+                        id='host',
+                        options=host_dropdown,
+                    ),
+                ], className='col-2'),
+                # IP Sla Dropdown
+                html.Div([
+                    html.Label('Ip Sla'),
+                    dcc.Dropdown(
+                        id='ipsla',
+                        options=ipsla_dropdown,
+                    ),
+                ], className='col-3'),
+                # Reserved Space
+                html.Div([
+                    html.Label('Averages'),
+                    dcc.Dropdown(
+                        options=[
+                            {'label': 'No Average', 'value': ''},
+                            {'label': 'Hourly', 'value': 'H'},
+                            {'label': 'Daily', 'value': 'D'},
+                            {'label': 'Weekly', 'value': 'W'},
+                            {'label': 'Monthly', 'value': 'M'},
+                        ],
+                        value='',
+                        searchable=False,
+                        clearable=False,
+                        id='averages',
+                    ),
+                ], className='col-2'),
+                # Refresh Button
+                html.Div([
+                    html.Button('Refresh', id='refresh_button', className='btn btn-success mr-2'),
+                    html.Button('Add to Compare', id='add_compare_button', className='btn btn-warning mr-2'),
+                    html.Button('Clear Comparison', id='clear_compare_button', className='btn btn-danger'),
+                ], className='col-5 align-self-end text-center'),
+            ], className='row'),
+
             html.Div([
-                html.Label('Ip Sla'),
-                dcc.Dropdown(
-                    id='ipsla',
-                    options=ipsla_dropdown,
-                ),
-            ], className='col-3'),
-            # Reserved Space
+                html.Div([
+                    html.H3('Graph')
+                ], id='graph-title', className='col-12 text-center mt-3', style={'display': 'none'}),
+            ], className='row'),
+
+            # graph placeholder
             html.Div([
-                html.Label('Averages'),
-                dcc.Dropdown(
-                    options=[
-                        {'label': 'No Average', 'value': ''},
-                        {'label': 'Hourly', 'value': 'H'},
-                        {'label': 'Daily', 'value': 'D'},
-                        {'label': 'Weekly', 'value': 'W'},
-                        {'label': 'Monthly', 'value': 'M'},
-                    ],
-                    value='',
-                    searchable=False,
-                    clearable=False,
-                    id='averages',
-                ),
-            ], className='col-2'),
-            # Refresh Button
+                html.Div([
+                    dcc.Graph(
+                        id='graph_ipsla',
+                        animate=False,
+                    ),
+                ], id='graph', className='col-12', style={'visibility': 'hidden'}),
+            ], className='row'),
+
             html.Div([
-                html.Button('Refresh', id='refresh_button', className='btn btn-success mr-2'),
-                html.Button('Add to Compare', id='add_compare_button', className='btn btn-warning mr-2'),
-                html.Button('Clear Comparison', id='clear_compare_button', className='btn btn-danger'),
-            ], className='col-5 align-self-end text-center'),
-        ], className='row'),
+                html.Div([
+                    html.H3('Statistics')
+                ], id='table-title', className='col-12 text-center mt-3', style={'display': 'none'}),
+            ], className='row'),
 
-        html.Div([
+            # table placeholder
             html.Div([
-                html.H3('Graph')
-            ], id='graph-title', className='col-12 text-center mt-3', style={'display': 'none'}),
-        ], className='row'),
+                html.Div([
+                    dash_table.DataTable(
+                        id='ipsla_table',
+                        columns=[
+                            {'name': 'Data Range', 'id': "date_range"},
+                            {'name': 'Number of Points', 'id': "number_points"},
+                            {'name': 'Min rtt', 'id': "min_rtt"},
+                            {'name': 'Avg rtt', 'id': "avg_rtt"},
+                            {'name': 'Std Dev rtt', 'id': "std_rtt"},
+                            {'name': 'Max rtt', 'id': "max_rtt"},
+                        ],
+                        style_cell={'textAlign': 'center'},
+                    )
+                ], id='table', className='col-12', style={'visibility': 'hidden'}),
+            ], className='row'),
 
-        # graph placeholder
-        html.Div([
+            html.Hr([], className='mt-5 mb-5'),
+
+            # Comparison Graph placeholder
             html.Div([
-                dcc.Graph(
-                    id='graph_ipsla',
-                    animate=False,
-                ),
-            ], id='graph', className='col-12', style={'visibility': 'hidden'}),
-        ], className='row'),
+                html.Div(id='comparison-list', className='col-12'),
+            ], className='row'),
 
-        html.Div([
+            # Comparison Graph placeholder
             html.Div([
-                html.H3('Statistics')
-            ], id='table-title', className='col-12 text-center mt-3', style={'display': 'none'}),
-        ], className='row'),
+                html.Div(id='comparison-graph', className='col-12'),
+            ], className='row'),
 
-        # table placeholder
-        html.Div([
-            html.Div([
-                dash_table.DataTable(
-                    id='ipsla_table',
-                    columns=[
-                        {'name': 'Data Range', 'id': "date_range"},
-                        {'name': 'Number of Points', 'id': "number_points"},
-                        {'name': 'Min rtt', 'id': "min_rtt"},
-                        {'name': 'Avg rtt', 'id': "avg_rtt"},
-                        {'name': 'Std Dev rtt', 'id': "std_rtt"},
-                        {'name': 'Max rtt', 'id': "max_rtt"},
-                    ],
-                    style_cell={'textAlign': 'center'},
-                )
-            ], id='table', className='col-12', style={'visibility': 'hidden'}),
-        ], className='row'),
+            # Hidden div inside the app that stores the data
+            html.Div(id='shared-data', style={'display': 'none'}),
 
-        html.Hr([], className='mt-5 mb-5'),
+            # Hidden div inside the app that stores relayout state
+            html.Div(id='relayout-data', style={'display': 'none'}),
 
-        # Comparison Graph placeholder
-        html.Div([
-            html.Div(id='comparison-list', className='col-12'),
-        ], className='row'),
+            # Hidden div inside the app that shared dataframes for comparison
+            html.Div(id='shared-data-comparison', style={'display': 'none'}),
 
-        # Comparison Graph placeholder
-        html.Div([
-            html.Div(id='comparison-graph', className='col-12'),
-        ], className='row'),
-
-        # Hidden div inside the app that stores the data
-        html.Div(id='shared-data', style={'display': 'none'}),
-
-        # Hidden div inside the app that stores relayout state
-        html.Div(id='relayout-data', style={'display': 'none'}),
-
-        # Hidden div inside the app that shared dataframes for comparison
-        html.Div(id='shared-data-comparison', style={'display': 'none'}),
-
-        # Hidden div inside the app that shared the previous state of the buttons
-        html.Div(id='button-states', style={'display': 'none'}),
-
+            # Hidden div inside the app that shared the previous state of the buttons
+            html.Div(id='button-states', style={'display': 'none'}),
+        ], style={'padding-top': '70px'})
     ], className='container-fluid')
 
     return layout

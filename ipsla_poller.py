@@ -1,6 +1,6 @@
 import yaml
 from multiprocessing import Process, Queue
-from easysnmp import Session, EasySNMPConnectionError, EasySNMPTimeoutError, EasySNMPUnknownObjectIDError
+from easysnmp import Session, EasySNMPConnectionError, EasySNMPTimeoutError, EasySNMPUnknownObjectIDError, EasySNMPNoSuchInstanceError
 from lib.utils import cons_ipsla_types, grab_all_polls
 import time
 from ipaddress import IPv4Address
@@ -82,7 +82,8 @@ def ipsla_worker(poll_q, ipsla_q):
 
         # Check SNMP Version
         if snmp_version == '2':
-            print("SNMP Version 2 Is not implemented yet")
+            # Create an SNMP session to be used for all our requests
+            snmp_session = Session(hostname=hostname, community=snmp_community, version=int(snmp_version))
         elif snmp_version == '3':
             # Create an SNMP session to be used for all our requests
             snmp_session = Session(retries=config['snmp']['retries'], timeout=config['snmp']['timeout'],
@@ -91,12 +92,31 @@ def ipsla_worker(poll_q, ipsla_q):
                                    security_username=snmp_security_username, auth_protocol=snmp_auth_protocol,
                                    auth_password=snmp_auth_password, privacy_protocol=snmp_priv_protocol,
                                    privacy_password=snmp_priv_password)
-            ipsla_results = {}
-            ipsla_results['hostname'] = hostname
-            ipsla_results['ipsla_index'] = ipsla_index
-            # Get sysuptime
+        ipsla_results = {}
+        ipsla_results['hostname'] = hostname
+        ipsla_results['ipsla_index'] = ipsla_index
+        # Get sysuptime
+        try:
+            ipsla_results['sysuptime'] = snmp_session.get('1.3.6.1.2.1.1.3.0').value
+            # Handle timeout error
+        except EasySNMPTimeoutError:
+            message = "Timeout connecting to host {host}".format(host=hostname)
+            print(message)
+            break
+        # Handle Connection error
+        except EasySNMPConnectionError:
+            message = "Error connecting to host {host}".format(host=hostname)
+            print(message)
+            break
+        # Handle OID Problem, device not supported maybe?
+        except EasySNMPUnknownObjectIDError:
+            message = "Device {host} not supported".format(host=hostname)
+            print(message)
+            break
+        # Get snmp data from the template
+        for key in template:
             try:
-                ipsla_results['sysuptime'] = snmp_session.get('1.3.6.1.2.1.1.3.0').value
+                snmp_res = snmp_session.get(template[key] + '.' + ipsla_index)
                 # Handle timeout error
             except EasySNMPTimeoutError:
                 message = "Timeout connecting to host {host}".format(host=hostname)
@@ -112,30 +132,15 @@ def ipsla_worker(poll_q, ipsla_q):
                 message = "Device {host} not supported".format(host=hostname)
                 print(message)
                 break
-            # Get snmp data from the template
-            for key in template:
-                try:
-                    snmp_res = snmp_session.get(template[key] + '.' + ipsla_index)
-                    # Handle timeout error
-                except EasySNMPTimeoutError:
-                    message = "Timeout connecting to host {host}".format(host=hostname)
-                    print(message)
-                    break
-                # Handle Connection error
-                except EasySNMPConnectionError:
-                    message = "Error connecting to host {host}".format(host=hostname)
-                    print(message)
-                    break
-                # Handle OID Problem, device not supported maybe?
-                except EasySNMPUnknownObjectIDError:
-                    message = "Device {host} not supported".format(host=hostname)
-                    print(message)
-                    break
+            except EasySNMPNoSuchInstanceError:
+                message = "No Such an Instance Error"
+                print(message)
+                break
 
-                ipsla_results[key] = snmp_res.value
+            ipsla_results[key] = snmp_res.value
 
-            # Adding Data to the queue to be later processed by the db process
-            ipsla_q.put(ipsla_results)
+        # Adding Data to the queue to be later processed by the db process
+        ipsla_q.put(ipsla_results)
     return
 
 

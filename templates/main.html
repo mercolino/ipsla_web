@@ -31,7 +31,7 @@
 
     <header>
         <!-- Creating navbar-->
-        <nav class="navbar navbar-expand-sm navbar-light" style="background-color: #e3f2fd;">
+        <nav class="navbar fixed-top navbar-expand-sm navbar-light" style="background-color: #e3f2fd;">
             <div class="container-fluid">
                 <!-- Adding Logo -->
                 <a class="navbar-brand" href="#">
@@ -54,6 +54,11 @@
                                 Configuration
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link {{pill_active[2] }}" href="{{ url_for('reports') }}">
+                                Reports
+                            </a>
+                        </li>
                     </ul>
                     <ul class="navbar-nav nav-pills ml-auto">
                         <li class="nav-item justify-content-end">
@@ -67,7 +72,7 @@
         </nav>
     </header>
 
-    <body>
+    <body style="padding-top: 70px;">
         <!-- Script to close alert flashes -->
         <script>
             window.setTimeout(function() {

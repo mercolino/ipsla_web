@@ -266,9 +266,6 @@ def insert_polling_data(selection, ipsla_indexes, snmp_data, ipsla_types, ipsla_
                                 '' if snmp_data['privacy_protocol'] == "Choose..." else snmp_data['privacy_protocol'],
                                 privacy_password))
 
-        print(auth_password)
-        print(privacy_password)
-
         db.commit()
         db.close()
 

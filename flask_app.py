@@ -66,14 +66,14 @@ class SearchIpSlaForm(FlaskForm):
 # Main Function just the landing page for now, here plotly dashboard is going to be presented
 @app.route('/')
 def main():
-    pill_active = ['active', '']
+    pill_active = ['active', '', '']
     return render_template('main.html', pill_active=pill_active)
 
 
 # Config page, all the ip sla's on the polling database and presented and can be added or removed
 @app.route('/config', methods=['GET', 'POST'])
 def config():
-    pill_active = ['', 'active']
+    pill_active = ['', 'active', '']
     # Checking if method is post because form was sent
     if request.method == 'POST':
         # Check if button remove was pressed
@@ -103,7 +103,7 @@ def config():
 # Function to search for IP Sla's
 @app.route('/search', methods=['GET', 'POST'])
 def search():
-    pill_active = ['', 'active']
+    pill_active = ['', 'active', '']
     # Define form with class configured
     form = SearchIpSlaForm()
     # If Form's submit button was pressed enter
@@ -123,11 +123,17 @@ def search():
 
     return render_template('search.html', form=form, pill_active=pill_active)
 
+# Function to search for IP Sla's
+@app.route('/reports')
+def reports():
+    pill_active = ['', '', 'active']
+    return render_template('reports.html', pill_active=pill_active)
+
 
 # Function to add ipsla to the database
 @app.route('/ipsla', methods=['GET', 'POST'])
 def ipsla():
-    pill_active = ['', 'active']
+    pill_active = ['', 'active', '']
     # Retrieve Session data saved in search function
     ipsla_indexes = session['indexes']
     ipsla_types = session['types']
