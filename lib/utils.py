@@ -486,7 +486,7 @@ def grab_ipslas(hostname):
         cursor = db.cursor()
         try:
             cursor.execute(
-                '''SELECT DISTINCT ipsla_index, ipsla_tag FROM ipsla_polling WHERE hostname = ?''', (hostname,))
+                '''SELECT DISTINCT ipsla_index, ipsla_tag, ipsla_type FROM ipsla_polling WHERE hostname = ?''', (hostname,))
             all_rows = cursor.fetchall()
         except sqlite3.OperationalError:
             all_rows = []
@@ -510,7 +510,7 @@ def grab_ipslas(hostname):
         # Create Collection
         col = db['ipsla_polling']
 
-        query = col.find({'hostname': hostname}, {'_id': 0, 'ipsla_index': 1, 'ipsla_tag': 1})
+        query = col.find({'hostname': hostname}, {'_id': 0, 'ipsla_index': 1, 'ipsla_tag': 1, 'ipsla_type': 1})
 
         all_rows = []
         for q in query:
@@ -546,8 +546,12 @@ def grab_graph_data(hostname, ipsla, sd, ed, a):
         except TypeError:
             return '', pd.DataFrame()
 
-        # Querying database
-        sql = 'SELECT datetime, latest_rtt, frequency FROM ' + ipsla_type + ' WHERE hostname = \'' + hostname + '\' AND ipsla_index = \'' + ipsla + '\' AND datetime BETWEEN \'' + sd + '\' AND \'' + ed + '\' ORDER BY datetime ASC'
+        if ipsla_type in ['echo', 'udpEcho']:
+            # Querying database
+            sql = 'SELECT datetime, latest_rtt, frequency FROM ' + ipsla_type + ' WHERE hostname = \'' + hostname + '\' AND ipsla_index = \'' + ipsla + '\' AND datetime BETWEEN \'' + sd + '\' AND \'' + ed + '\' ORDER BY datetime ASC'
+        elif ipsla_type in ['jitter']:
+            sql = 'SELECT datetime, latest_rtt, min_rtt, max_rtt, frequency FROM ' + ipsla_type + ' WHERE hostname = \'' + hostname + '\' AND ipsla_index = \'' + ipsla + '\' AND datetime BETWEEN \'' + sd + '\' AND \'' + ed + '\' ORDER BY datetime ASC'
+
         df = pd.read_sql_query(sql, db)
 
         # Convert Datetime strings to datetime
@@ -555,6 +559,10 @@ def grab_graph_data(hostname, ipsla, sd, ed, a):
 
         # Convert latest_rtt strings to numeric
         df['latest_rtt'] = pd.to_numeric(df['latest_rtt'])
+
+        if ipsla_type in ['jitter']:
+            df['min_rtt'] = pd.to_numeric(df['min_rtt'])
+            df['max_rtt'] = pd.to_numeric(df['max_rtt'])
 
         # retrieve frequency
         freq = df['frequency'].iloc[0]
@@ -615,7 +623,10 @@ def grab_graph_data(hostname, ipsla, sd, ed, a):
         ]}
 
         try:
-            query_data = col.find(query, {'_id': 1, 'datetime': 1, 'latest_rtt': 1, 'frequency': 1}).sort('datetime', pymongo.ASCENDING)
+            if ipsla_type in ['echo', 'udpEcho']:
+                query_data = col.find(query, {'_id': 1, 'datetime': 1, 'latest_rtt': 1, 'frequency': 1}).sort('datetime', pymongo.ASCENDING)
+            elif ipsla_type in ['jitter']:
+                query_data = col.find(query, {'_id': 1, 'datetime': 1, 'latest_rtt': 1, 'min_rtt': 1,'max_rtt': 1,'frequency': 1}).sort('datetime', pymongo.ASCENDING)
         except:
             return '', pd.DataFrame()
         df = iterator2dataframes(query_data, 10000)
@@ -624,6 +635,10 @@ def grab_graph_data(hostname, ipsla, sd, ed, a):
 
         # Convert latest_rtt strings to numeric
         df['latest_rtt'] = pd.to_numeric(df['latest_rtt'])
+
+        if ipsla_type in ['jitter']:
+            df['min_rtt'] = pd.to_numeric(df['min_rtt'])
+            df['max_rtt'] = pd.to_numeric(df['max_rtt'])
 
         # retrieve frequency
         freq = df['frequency'].iloc[0]

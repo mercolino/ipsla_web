@@ -9,7 +9,7 @@ import json
 from flask_app import app
 
 
-app_dash = dash.Dash(name='dash_app', sharing=True, server=app, url_base_pathname='/dashboard/',
+app_dash = dash.Dash(name='jitter_dash_app', sharing=True, server=app, url_base_pathname='/jitter-dashboard/',
                      assets_external_path='/static/assets')
 app_dash.config['suppress_callback_exceptions'] = True
 app_dash.css.append_css({'external_url': '/static/css/bootstrap.css'})
@@ -60,8 +60,13 @@ def serve_layout():
                     html.Ul([
                         html.Li([
                             html.A([
-                                'Dashboard'
-                            ], className='nav-link active', href='/'),
+                                'Echo Dash'
+                            ], className='nav-link', href='/echo-dash'),
+                        ], className='nav-item'),
+                        html.Li([
+                            html.A([
+                                'Jitter Dash'
+                            ], className='nav-link active', href='/jitter-dash'),
                         ], className='nav-item'),
                     ], className='navbar-nav nav-pills ml-auto'),
                 ], className='navbar navbar-shadow fixed-top navbar-expand-sm navbar-light', style={'background-color': '#e3f2fd'}),
@@ -71,7 +76,7 @@ def serve_layout():
         html.Div([
             html.Div([
                 html.Div([
-                    html.H2(children='Dashboard'),
+                    html.H2(children='Jitter IP Sla Dashboard'),
                 ], className='col-12 text-center'),
             ], className='row'),
 
@@ -105,7 +110,7 @@ def serve_layout():
                 ], className='col-2'),
                 # IP Sla Dropdown
                 html.Div([
-                    html.Label('Ip Sla'),
+                    html.Label('Jitter Ip Sla'),
                     dcc.Dropdown(
                         id='ipsla',
                         options=ipsla_dropdown,
@@ -166,10 +171,12 @@ def serve_layout():
                         columns=[
                             {'name': 'Data Range', 'id': "date_range"},
                             {'name': 'Number of Points', 'id': "number_points"},
-                            {'name': 'Min rtt', 'id': "min_rtt"},
+                            {'name': 'Avg(min rtt)', 'id': "min_avg_rtt"},
+                            {'name': 'Min(avg rtt)', 'id': "min_rtt"},
                             {'name': 'Avg rtt', 'id': "avg_rtt"},
-                            {'name': 'Std Dev rtt', 'id': "std_rtt"},
-                            {'name': 'Max rtt', 'id': "max_rtt"},
+                            {'name': 'Max(avg rtt)', 'id': "max_rtt"},
+                            {'name': 'Avg(max rtt)', 'id': "max_avg_rtt"},
+                            {'name': 'Std Dev Avg rtt', 'id': "std_rtt"},
                         ],
                         style_cell={'textAlign': 'center'},
                     )
@@ -216,7 +223,8 @@ def update_ipsla_dropdown(h):
         ipslas = grab_ipslas(h)
         ipsla_dropdown = []
         for ipsla in ipslas:
-            ipsla_dropdown.append({'label': ipsla[0] + ' ( ' + ipsla[1] + ' )', 'value': ipsla[0]})
+            if ipsla[2] in ['9']:
+                ipsla_dropdown.append({'label': ipsla[0] + ' ( ' + ipsla[1] + ' )', 'value': ipsla[0]})
 
         return ipsla_dropdown
     else:
@@ -366,27 +374,42 @@ def graph(df_json):
                     'x': dataframe.index,
                     'y': dataframe['latest_rtt'],
                     'type': 'line',
-                    'name': 'rtt',
-                    'connectgaps': False},
+                    'name': 'avg rtt',
+                    'connectgaps': False
+                },
+                {
+                    'x': dataframe.index,
+                    'y': dataframe['min_rtt'],
+                    'type': 'line',
+                    'name': 'min rtt',
+                    'connectgaps': False
+                },
+                {
+                    'x': dataframe.index,
+                    'y': dataframe['max_rtt'],
+                    'type': 'line',
+                    'name': 'max rtt',
+                    'connectgaps': False
+                },
                 {
                     'x': dataframe.index,
                     'y': dataframe['min'],
                     'type': 'line',
-                    'name': 'min',
+                    'name': 'min(avg rtt)',
                     'line': {'width': 0.5}
                 },
                 {
                     'x': dataframe.index,
                     'y': dataframe['avg'],
                     'type': 'line',
-                    'name': 'avg',
+                    'name': 'avg(avg rtt)',
                     'line': {'width': 0.5}
                 },
                 {
                     'x': dataframe.index,
                     'y': dataframe['max'],
                     'type': 'line',
-                    'name': 'max',
+                    'name': 'max(avg rtt)',
                     'line': {'width': 0.5}
                 },
             ],
@@ -487,6 +510,9 @@ def table(r, df_json, pr):
             ed = dataframe.index.max()
 
         # Add min to the dataframe
+        min_avg = dataframe['min_rtt'].mean()
+
+        # Add min to the dataframe
         minimum = dataframe['latest_rtt'].min()
 
         # Add average to the dataframe
@@ -498,14 +524,20 @@ def table(r, df_json, pr):
         # Add max to the dataframe
         maximum = dataframe['latest_rtt'].max()
 
+        # Add min to the dataframe
+        max_avg = dataframe['max_rtt'].mean()
+
         return [
             {
                 'date_range': sd.strftime('%Y-%m-%d %H:%M:%S') + ' --> ' + ed.strftime('%Y-%m-%d %H:%M:%S'),
                 'number_points': len(dataframe.index),
+                'min_avg_rtt': min_avg,
                 'min_rtt': minimum,
                 'avg_rtt': avg,
+                'max_rtt': maximum,
+                'max_avg_rtt': max_avg,
                 'std_rtt': std,
-                'max_rtt': maximum
+
             }
         ]
     else:

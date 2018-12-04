@@ -347,7 +347,7 @@ if __name__ == "__main__":
                 db_job.join()
 
             print("Ending Polling")
-            time.sleep(config['poll_frequency']*60)
+            time.sleep(config['poll_frequency'])
 
         except KeyboardInterrupt:
             print("Keyboard interrupt waiting for all processes to be done")

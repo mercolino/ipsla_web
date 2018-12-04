@@ -164,6 +164,10 @@ def ipsla():
                            types_names=ipsla_types_names, snmp_data=snmp_data, pill_active=pill_active)
 
 
-@app.route('/dash')
-def dash():
-    return redirect('/dashboard')
+@app.route('/echo-dash')
+def echo_dash():
+    return redirect('/echo-dashboard')
+
+@app.route('/jitter-dash')
+def jitter_dash():
+    return redirect('/jitter-dashboard')

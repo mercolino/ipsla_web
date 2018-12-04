@@ -63,10 +63,14 @@
                         </li>
                     </ul>
                     <ul class="navbar-nav nav-pills ml-auto">
-                        <li class="nav-item justify-content-end">
-                            <a class="nav-link" href="{{ url_for('dash') }}">
-                                Dashboard
+                        <li class="nav-item dropdown justify-content-end">
+                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                 Dashboard
                             </a>
+                            <div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink">
+                                <a class="dropdown-item" href="{{ url_for('echo_dash') }}">Echo IP Sla's</a>
+                                <a class="dropdown-item" href="{{ url_for('jitter_dash') }}">Jitter IP Sla's</a>
+                            </div>
                         </li>
                     </ul>
                 </div>
