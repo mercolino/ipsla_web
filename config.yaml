@@ -1,7 +1,7 @@
 # Configuration File for the Ip SLA Poller
 
-# Poll Frequency in minutes
-poll_frequency: 1
+# Poll Frequency in seconds
+poll_frequency: 30
 
 # Graph refresh Frequency in seconds
 graph_refresh: 30
