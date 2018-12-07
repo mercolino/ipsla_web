@@ -11,3 +11,4 @@ flask
 PyYAML
 pymongo
 pycrypto
+scipy

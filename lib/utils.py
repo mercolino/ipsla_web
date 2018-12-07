@@ -666,3 +666,100 @@ def grab_graph_data(hostname, ipsla, sd, ed, a):
             df = df.resample(a).mean()
 
         return ipsla_type, df
+
+
+# Function to grab all data from the database
+def grab_all_data(hostname, ipsla, sd, ed, a):
+    # Retrieving SNMP config from yaml
+    f = open('config.yaml', 'r')
+    config = yaml.load(f)
+
+    f.close()
+
+    # Check type of Database is used
+    if config['db'].lower() == 'sqlite':
+        db = sqlite3.connect('db/' + config['db_name'].lower() + '.db')
+        cursor = db.cursor()
+        try:
+            cursor.execute(
+                '''SELECT ipsla_type FROM ipsla_polling WHERE hostname = ? AND ipsla_index = ?''', (hostname, ipsla))
+            result = cursor.fetchone()[0]
+            ipsla_type = cons_ipsla_types[int(result)]
+        except sqlite3.OperationalError:
+            return '', pd.DataFrame()
+        except TypeError:
+            return '', pd.DataFrame()
+
+
+        # Querying database
+        sql = 'SELECT * FROM ' + ipsla_type + ' WHERE hostname = \'' + hostname + '\' AND ipsla_index = \'' + ipsla + '\' AND datetime BETWEEN \'' + sd + '\' AND \'' + ed + '\' ORDER BY datetime ASC'
+
+        df = pd.read_sql_query(sql, db)
+
+        # Convert Datetime strings to datetime
+        df['datetime'] = pd.to_datetime(df['datetime'])
+
+        # Convert latest_rtt strings to numeric
+        df['latest_rtt'] = pd.to_numeric(df['latest_rtt'])
+
+        if ipsla_type in ['jitter']:
+            df['min_rtt'] = pd.to_numeric(df['min_rtt'])
+            df['max_rtt'] = pd.to_numeric(df['max_rtt'])
+
+
+        return df
+
+    elif config['db'].lower() == 'mongodb':
+
+        # Create Url to connect to mongo database
+        url = "mongodb://{username}:{password}@{host}:{port}".format(
+            username=config['mongo']['username'],
+            password=config['mongo']['password'],
+            host=config['mongo']['host'],
+            port=config['mongo']['port']
+        )
+        # Create conenction
+        client = pymongo.MongoClient(url)
+        # Create database
+        db = client[config['db_name']]
+        # Create Collection
+        col = db['ipsla_polling']
+
+        try:
+            ipsla_type = col.find_one({'hostname': hostname, 'ipsla_index': ipsla}, {'_id': 0, 'ipsla_type': 1})['ipsla_type']
+        except:
+            return pd.DataFrame()
+
+        ipsla_type = cons_ipsla_types[int(ipsla_type)]
+
+        col = db[ipsla_type]
+        sd = datetime.strptime(sd, "%Y-%m-%d %H:%M:%S")
+        ed = datetime.strptime(ed, "%Y-%m-%d %H:%M:%S")
+        query = {'$and': [
+            {'hostname': hostname},
+            {'ipsla_index': ipsla},
+            {'datetime': {
+                '$gte': sd, '$lt': ed
+            }}
+        ]}
+
+        try:
+            query_data = col.find(query).sort('datetime', pymongo.ASCENDING)
+        except:
+            return pd.DataFrame()
+        df = iterator2dataframes(query_data, 10000)
+
+        client.close()
+
+        # Convert latest_rtt strings to numeric
+        df['latest_rtt'] = pd.to_numeric(df['latest_rtt'])
+
+        if ipsla_type in ['jitter']:
+            df['min_rtt'] = pd.to_numeric(df['min_rtt'])
+            df['max_rtt'] = pd.to_numeric(df['max_rtt'])
+
+        # Resample with averages if requested
+        if a != '':
+            df = df.resample(a).mean()
+
+        return df

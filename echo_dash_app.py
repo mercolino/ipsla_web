@@ -2,11 +2,12 @@ import dash
 import dash_table
 import dash_core_components as dcc
 import dash_html_components as html
-from lib.utils import grab_hostnames, grab_ipslas, grab_graph_data
+from lib.utils import grab_hostnames, grab_ipslas, grab_graph_data, grab_all_data
 import pandas as pd
 from datetime import datetime
 import json
 from flask_app import app
+import plotly.figure_factory as ff
 
 
 app_dash = dash.Dash(name='echo_dash_app', sharing=True, server=app, url_base_pathname='/echo-dashboard/',
@@ -95,6 +96,23 @@ def serve_layout():
                         start_date=datetime.now().date(),
                         end_date=datetime.now().date()
                     ),
+                ], className='col-3'),
+                # Checkboxes
+                html.Div([
+                    dcc.Checklist(
+                        id='graph_statistics_checkbox',
+                        options=[
+                            {'label': ' Graph Statistics', 'value': 'graph_statistics_checkbox'},
+                        ],
+                        values=['']
+                    ),
+                    dcc.Checklist(
+                        id='raw_data_checkbox',
+                        options=[
+                            {'label': ' Show Raw Data Table', 'value': 'raw_data_checkbox'},
+                        ],
+                        values=['']
+                    ),
                 ], className='col-4'),
             ], className='row mb-1'),
 
@@ -141,20 +159,24 @@ def serve_layout():
                 ], className='col-5 align-self-end text-center'),
             ], className='row'),
 
+            html.Hr([], className='mt-2 mb-2'),
+
             html.Div([
                 html.Div([
                     html.H3('Graph')
                 ], id='graph-title', className='col-12 text-center mt-3', style={'display': 'none'}),
             ], className='row'),
 
-            # graph placeholder
+            # rtt graph placeholder
             html.Div([
                 html.Div([
-                    dcc.Graph(
-                        id='graph_ipsla',
-                        animate=False,
-                    ),
-                ], id='graph', className='col-12', style={'visibility': 'hidden'}),
+                    html.Div([
+                        dcc.Graph(
+                            id='graph_ipsla',
+                            animate=False,
+                        ),
+                    ], id='graph', style={}),
+                ], className='col-12'),
             ], className='row'),
 
             html.Div([
@@ -178,10 +200,22 @@ def serve_layout():
                         ],
                         style_cell={'textAlign': 'center'},
                     )
-                ], id='table', className='col-12', style={'visibility': 'hidden'}),
+                ], id='table', className='col-12', style={'display': 'none'}),
             ], className='row'),
 
-            html.Hr([], className='mt-5 mb-5'),
+            # Statistics graph placeholder
+            html.Div([
+                html.Div([
+                    html.Div([
+                        dcc.Graph(
+                            id='graph_statistics',
+                            animate=False,
+                        ),
+                    ], id='graph_statistics_placeholder', className='col-12', style={}),
+                ], className='col-12'),
+            ], className='row'),
+
+            html.Hr([], id='comparison_separation_line', className='mt-3 mb-3 d-none'),
 
             # Comparison Graph placeholder
             html.Div([
@@ -191,6 +225,19 @@ def serve_layout():
             # Comparison Graph placeholder
             html.Div([
                 html.Div(id='comparison-graph', className='col-12'),
+            ], className='row'),
+
+            html.Div([
+                html.Hr([], className='mt-3 mb-3'),
+                html.Div([
+                    html.H3('Raw Data Table')
+                ], className='col-12 text-center mt-2, bg-info'),
+            ], id='raw_data_div', className='d-none'),
+
+
+            # Raw Data Table placeholder
+            html.Div([
+                html.Div(id='raw_data_table', className='col-12'),
             ], className='row'),
 
             # Hidden div inside the app that stores the data
@@ -236,7 +283,7 @@ def update_ipsla_dropdown(h):
                        dash.dependencies.Input('clear_compare_button', 'n_clicks'),
                    ],
                    )
-def data_comparison(n, c):
+def save_button_states(n, c):
     state = {'add': n, 'clear': c}
 
     return json.dumps(state)
@@ -339,9 +386,9 @@ def graph_title(fig):
                    ])
 def show_graph(fig):
     if bool(fig):
-        return {'visibility': 'visible'}
+        return {}
     else:
-        return {'visibility': 'hidden'}
+        return {'display': 'none'}
 
 
 # Function to graph the data
@@ -427,6 +474,43 @@ def graph(df_json):
         return {}
 
 
+# Function to show the graph
+@app_dash.callback(dash.dependencies.Output('graph_statistics_placeholder', 'style'),
+                   [
+                       dash.dependencies.Input('graph_statistics', 'figure'),
+                   ])
+def show_graph_statistics(fig):
+    if bool(fig):
+        return {}
+    else:
+        return {'display': 'none'}
+
+
+# Function to graph the data
+@app_dash.callback(dash.dependencies.Output('graph_statistics', 'figure'),
+                   [
+                       dash.dependencies.Input('shared-data', 'children'),
+                       dash.dependencies.Input('graph_statistics_checkbox', 'values'),
+                   ],)
+def graph_statistics(df_json, checkbox_values):
+    if len(checkbox_values) == 2 and df_json is not None:
+        dataframe = pd.read_json(df_json)
+        ipsla_type = dataframe['ipsla_type'].unique()[0]
+        i = dataframe['ipsla_index'].unique()[0]
+        h = dataframe['host'].unique()[0]
+
+        fig = ff.create_distplot([dataframe['latest_rtt'].dropna().tolist(), ], ['rtt', ])
+
+        fig['layout'].update(title='RTT Statistics for {type} Ip Sla {ipsla} in host {host}'.format(
+                    type=ipsla_type[0].upper() + ipsla_type[1:],
+                    ipsla=i,
+                    host=h),)
+
+        return fig
+    else:
+        return {}
+
+
 # Function to show table title
 @app_dash.callback(dash.dependencies.Output('table-title', 'style'),
                    [
@@ -446,9 +530,9 @@ def table_title(fig):
                    ])
 def show_table(fig):
     if bool(fig):
-        return {'visibility': 'visible'}
+        return {}
     else:
-        return {'visibility': 'hidden'}
+        return {'display': 'none'}
 
 
 # Callback to create/update the Table
@@ -460,7 +544,7 @@ def show_table(fig):
                    [
                        dash.dependencies.State('relayout-data', 'children')
                    ])
-def table(r, df_json, pr):
+def statistics_table(r, df_json, pr):
 
     if df_json is not None:
         if r is None:
@@ -535,7 +619,7 @@ def comparison_list(n, json_list):
         return [
             html.Div([
                 html.H3('Comparison Graph')
-            ], className='col-12 text-center mt-3, bg-info'),
+            ], className='col-12 text-center mt-2, bg-info'),
             html.Div([
                 'Comparing: | ' + compare_list
             ], className='col-12 mt-3 bg-dark text-white'),
@@ -544,7 +628,24 @@ def comparison_list(n, json_list):
         return []
 
 
-# Function to agraph the comparison graph
+# Show separation Line
+@app_dash.callback(dash.dependencies.Output('comparison_separation_line', 'className'),
+                   [
+                       dash.dependencies.Input('add_compare_button', 'n_clicks'),
+                       dash.dependencies.Input('clear_compare_button', 'n_clicks')
+                   ],
+                   [
+                       dash.dependencies.State('button-states', 'children')
+                   ])
+def show_comparison_separation_line(n, c, s):
+    if s is not None:
+        state = json.loads(s)
+    if n is None or c != state['clear']:
+        return 'mt-5 mb-5 d-none'
+    else:
+        return 'mt-5 mb-5'
+
+# Function to a graph the comparison graph
 @app_dash.callback(dash.dependencies.Output('comparison-graph', 'children'),
                    [
                        dash.dependencies.Input('add_compare_button', 'n_clicks'),
@@ -593,3 +694,50 @@ def comparison_graph(n, json_list):
         return children
     else:
         return []
+
+
+# Function to show the Raw Data separation line
+@app_dash.callback(dash.dependencies.Output('raw_data_div', 'className'),
+                   [
+                       dash.dependencies.Input('raw_data_table', 'children'),
+                   ])
+def show_graph_statistics(table):
+    if bool(table):
+        return ''
+    else:
+        return 'd-none'
+
+
+# Callback to create/update the Table
+@app_dash.callback(dash.dependencies.Output('raw_data_table', 'children'),
+                   [
+                       dash.dependencies.Input('host', 'value'),
+                       dash.dependencies.Input('ipsla', 'value'),
+                       dash.dependencies.Input('averages', 'value'),
+                       dash.dependencies.Input('date-picker-range', 'start_date'),
+                       dash.dependencies.Input('date-picker-range', 'end_date'),
+                       dash.dependencies.Input('refresh_button', 'n_clicks'),
+                       dash.dependencies.Input('raw_data_checkbox', 'values')
+                   ])
+def raw_data_table(h, i , a, sd, ed, n, rd):
+
+    if h is not None and i is not None:
+        if len(rd) == 2:
+
+            sd_datetime = sd + ' 00:00:00'
+            ed_datetime = ed + ' 23:59:59'
+
+            dataframe = grab_all_data(h, i, sd_datetime, ed_datetime, a).dropna()
+
+            headers = ['id', 'datetime', 'hostname', 'ipsla_index', 'type', 'tag','threshold', 'timeout', 'frequency',
+                       'target_address', 'source_address', 'latest_rtt', 'return_code', 'sysuptime', 'time']
+
+            dataframe = dataframe[headers]
+
+            return [
+                dash_table.DataTable(
+                    columns=[{"name": i, "id": i} for i in dataframe.columns],
+                    style_cell={'textAlign': 'center'},
+                    data=dataframe.to_dict("rows")
+                )
+            ]
