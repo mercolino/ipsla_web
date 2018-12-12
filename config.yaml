@@ -3,9 +3,6 @@
 # Poll Frequency in seconds
 poll_frequency: 30
 
-# Graph refresh Frequency in seconds
-graph_refresh: 30
-
 # Number of snmp processes to spawn, used to connect to devices and poll snmp data
 number_of_snmp_processes: 3
 

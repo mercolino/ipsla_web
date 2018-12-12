@@ -348,7 +348,11 @@ def data(h, i, a, sd, ed, n):
         sd_datetime = sd + ' 00:00:00'
         ed_datetime = ed + ' 23:59:59'
 
-        ipsla_type, dataframe = grab_graph_data(h, i, sd_datetime, ed_datetime, a)
+        try:
+            ipsla_type, dataframe = grab_graph_data(h, i, sd_datetime, ed_datetime, a)
+        except Exception as e:
+            print(e)
+            return pd.DataFrame().to_json()
 
         if not dataframe.empty:
             dataframe['ipsla_type'] = ipsla_type
@@ -400,76 +404,89 @@ def graph(df_json):
     if df_json is not None:
 
         dataframe = pd.read_json(df_json)
-        ipsla_type = dataframe['ipsla_type'].unique()[0]
-        i = dataframe['ipsla_index'].unique()[0]
-        h = dataframe['host'].unique()[0]
 
-        # Add min to the dataframe
-        dataframe['min'] = dataframe['latest_rtt'].min()
+        if not dataframe.empty:
+            ipsla_type = dataframe['ipsla_type'].unique()[0]
+            i = dataframe['ipsla_index'].unique()[0]
+            h = dataframe['host'].unique()[0]
 
-        # Add average to the dataframe
-        dataframe['avg'] = dataframe['latest_rtt'].mean()
+            # Add min to the dataframe
+            dataframe['min'] = dataframe['latest_rtt'].min()
 
-        # Add max to the dataframe
-        dataframe['max'] = dataframe['latest_rtt'].max()
+            # Add average to the dataframe
+            dataframe['avg'] = dataframe['latest_rtt'].mean()
 
-        return {
-            'data': [
-                {
-                    'x': dataframe.index,
-                    'y': dataframe['latest_rtt'],
-                    'type': 'line',
-                    'name': 'rtt',
-                    'connectgaps': False
-                },
-                {
-                    'x': dataframe.index,
-                    'y': dataframe['min'],
-                    'type': 'line',
-                    'name': 'min',
-                    'line': {'width': 0.5}
-                },
-                {
-                    'x': dataframe.index,
-                    'y': dataframe['avg'],
-                    'type': 'line',
-                    'name': 'avg',
-                    'line': {'width': 0.5}
-                },
-                {
-                    'x': dataframe.index,
-                    'y': dataframe['max'],
-                    'type': 'line',
-                    'name': 'max',
-                    'line': {'width': 0.5}
-                },
-            ],
-            'layout': {
-                'height': 600,
-                'title': '{type} Ip Sla {ipsla} for host {host}'.format(
-                    type=ipsla_type[0].upper() + ipsla_type[1:],
-                    ipsla=i,
-                    host=h),
-                'xaxis': {
-                    'title': 'DateTime',
-                    'autorange': True,
-                    'rangeselector': {
-                        'buttons': [
-                            {'count': 15, 'label': '15m', 'step': 'minute', 'stepmode': 'backward'},
-                            {'count': 30, 'label': '30m', 'step': 'minute', 'stepmode': 'backward'},
-                            {'count': 1, 'label': '1h', 'step': 'hour', 'stepmode': 'backward'},
-                            {'count': 1, 'label': '1d', 'step': 'day', 'stepmode': 'backward'},
-                            {'count': 1, 'label': '1wk', 'step': 'week', 'stepmode': 'backward'},
-                            {'count': 1, 'label': '1M', 'step': 'month', 'stepmode': 'backward'},
-                            {'count': 1, 'label': '1y', 'step': 'year', 'stepmode': 'backward'},
-                            {'step': 'all'}
-                        ]
+            # Add max to the dataframe
+            dataframe['max'] = dataframe['latest_rtt'].max()
+
+            return {
+                'data': [
+                    {
+                        'x': dataframe.index,
+                        'y': dataframe['latest_rtt'],
+                        'type': 'line',
+                        'name': 'rtt',
+                        'connectgaps': False
                     },
-                    'rangeslider': {'type': 'date', 'visible': True},
-                },
-                'yaxis': {'title': 'Milliseconds', 'autorange': True},
+                    {
+                        'x': dataframe.index,
+                        'y': dataframe['min'],
+                        'type': 'line',
+                        'name': 'min',
+                        'line': {'width': 0.5}
+                    },
+                    {
+                        'x': dataframe.index,
+                        'y': dataframe['avg'],
+                        'type': 'line',
+                        'name': 'avg',
+                        'line': {'width': 0.5}
+                    },
+                    {
+                        'x': dataframe.index,
+                        'y': dataframe['max'],
+                        'type': 'line',
+                        'name': 'max',
+                        'line': {'width': 0.5}
+                    },
+                ],
+                'layout': {
+                    'height': 600,
+                    'title': '{type} Ip Sla {ipsla} for host {host}'.format(
+                        type=ipsla_type[0].upper() + ipsla_type[1:],
+                        ipsla=i,
+                        host=h),
+                    'xaxis': {
+                        'title': 'DateTime',
+                        'autorange': True,
+                        'rangeselector': {
+                            'buttons': [
+                                {'count': 15, 'label': '15m', 'step': 'minute', 'stepmode': 'backward'},
+                                {'count': 30, 'label': '30m', 'step': 'minute', 'stepmode': 'backward'},
+                                {'count': 1, 'label': '1h', 'step': 'hour', 'stepmode': 'backward'},
+                                {'count': 1, 'label': '1d', 'step': 'day', 'stepmode': 'backward'},
+                                {'count': 1, 'label': '1wk', 'step': 'week', 'stepmode': 'backward'},
+                                {'count': 1, 'label': '1M', 'step': 'month', 'stepmode': 'backward'},
+                                {'count': 1, 'label': '1y', 'step': 'year', 'stepmode': 'backward'},
+                                {'step': 'all'}
+                            ]
+                        },
+                        'rangeslider': {'type': 'date', 'visible': True},
+                    },
+                    'yaxis': {'title': 'Milliseconds', 'autorange': True},
+                }
             }
-        }
+        else:
+            return {
+                'data': [],
+                'layout': {
+                    'title': 'No Data to Graph!!!',
+                    'font': {
+                        'size': 18,
+                        'color': '#ff0000'
+                    }
+                },
+            }
     else:
         return {}
 
@@ -499,12 +516,26 @@ def graph_statistics(df_json, checkbox_values):
         i = dataframe['ipsla_index'].unique()[0]
         h = dataframe['host'].unique()[0]
 
-        fig = ff.create_distplot([dataframe['latest_rtt'].dropna().tolist(), ], ['rtt', ])
+        try:
+            fig = ff.create_distplot([dataframe['latest_rtt'].dropna().tolist(), ], ['rtt', ])
 
-        fig['layout'].update(title='RTT Statistics for {type} Ip Sla {ipsla} in host {host}'.format(
-                    type=ipsla_type[0].upper() + ipsla_type[1:],
-                    ipsla=i,
-                    host=h),)
+            fig['layout'].update(title='RTT Statistics for {type} Ip Sla {ipsla} in host {host}'.format(
+                type=ipsla_type[0].upper() + ipsla_type[1:],
+                ipsla=i,
+                host=h),)
+        except Exception as e:
+            print(e)
+            fig = {
+                'data': [],
+                'layout': {
+                    'title': 'No statistic graph can be done for Ip Sla {ipsla} in host {host}'.format(
+                        ipsla=i, host=h),
+                    'font': {
+                        'size': 18,
+                        'color': '#ff0000'
+                    }
+                }
+            }
 
         return fig
     else:
@@ -565,40 +596,53 @@ def statistics_table(r, df_json, pr):
 
         dataframe = pd.read_json(df_json)
 
-        if dummy == 'xaxis.range':
-            sd = pd.to_datetime(r['xaxis.range'][0])
-            ed = pd.to_datetime(r['xaxis.range'][1])
-            dataframe = dataframe.loc[(dataframe.index > sd) & (dataframe.index <= ed)]
-        elif dummy == 'xaxis.range[0]':
-            sd = pd.to_datetime(r['xaxis.range[0]'])
-            ed = pd.to_datetime(r['xaxis.range[1]'])
-            dataframe = dataframe.loc[(dataframe.index > sd) & (dataframe.index <= ed)]
+        if not dataframe.empty:
+
+            if dummy == 'xaxis.range':
+                sd = pd.to_datetime(r['xaxis.range'][0])
+                ed = pd.to_datetime(r['xaxis.range'][1])
+                dataframe = dataframe.loc[(dataframe.index > sd) & (dataframe.index <= ed)]
+            elif dummy == 'xaxis.range[0]':
+                sd = pd.to_datetime(r['xaxis.range[0]'])
+                ed = pd.to_datetime(r['xaxis.range[1]'])
+                dataframe = dataframe.loc[(dataframe.index > sd) & (dataframe.index <= ed)]
+            else:
+                sd = dataframe.index.min()
+                ed = dataframe.index.max()
+
+            # Add min to the dataframe
+            minimum = dataframe['latest_rtt'].min()
+
+            # Add average to the dataframe
+            avg = dataframe['latest_rtt'].mean()
+
+            # Add average to the dataframe
+            std = dataframe['latest_rtt'].std()
+
+            # Add max to the dataframe
+            maximum = dataframe['latest_rtt'].max()
+
+            return [
+                {
+                    'date_range': sd.strftime('%Y-%m-%d %H:%M:%S') + ' --> ' + ed.strftime('%Y-%m-%d %H:%M:%S'),
+                    'number_points': len(dataframe.index),
+                    'min_rtt': minimum,
+                    'avg_rtt': avg,
+                    'std_rtt': std,
+                    'max_rtt': maximum
+                }
+            ]
         else:
-            sd = dataframe.index.min()
-            ed = dataframe.index.max()
-
-        # Add min to the dataframe
-        minimum = dataframe['latest_rtt'].min()
-
-        # Add average to the dataframe
-        avg = dataframe['latest_rtt'].mean()
-
-        # Add average to the dataframe
-        std = dataframe['latest_rtt'].std()
-
-        # Add max to the dataframe
-        maximum = dataframe['latest_rtt'].max()
-
-        return [
-            {
-                'date_range': sd.strftime('%Y-%m-%d %H:%M:%S') + ' --> ' + ed.strftime('%Y-%m-%d %H:%M:%S'),
-                'number_points': len(dataframe.index),
-                'min_rtt': minimum,
-                'avg_rtt': avg,
-                'std_rtt': std,
-                'max_rtt': maximum
-            }
-        ]
+            return [
+                {
+                    'date_range': 'No Data',
+                    'number_points': 'No Data',
+                    'min_rtt': 'No Data',
+                    'avg_rtt': 'No Data',
+                    'std_rtt': 'No Data',
+                    'max_rtt': 'No Data'
+                }
+            ]
     else:
         return []
 

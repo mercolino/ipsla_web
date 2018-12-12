@@ -1,5 +1,5 @@
 import yaml
-from multiprocessing import Process, Queue
+from multiprocessing import Process, Queue, current_process
 from easysnmp import Session, EasySNMPConnectionError, EasySNMPTimeoutError, EasySNMPUnknownObjectIDError, EasySNMPNoSuchInstanceError
 from lib.utils import cons_ipsla_types, grab_all_polls
 import time
@@ -12,6 +12,7 @@ import base64
 from Crypto.Cipher import AES
 from Crypto.Hash import SHA256
 from Crypto import Random
+import random
 
 
 def encrypt(key, source, encode=True):
@@ -38,6 +39,7 @@ def decrypt(key, source, decode=True):
 
 
 def ipsla_worker(poll_q, ipsla_q):
+    print(current_process().name + ': ' + "Entering snmp worker")
     # Load config file
     f = open('config.yaml', 'r')
     config = yaml.load(f)
@@ -51,9 +53,22 @@ def ipsla_worker(poll_q, ipsla_q):
 
     encryption_key = data.encode('ascii')
 
-    while poll_q.qsize() != 0:
-        # Grabbing task from the poll queue
-        poll = poll_q.get()
+    while True:
+        # Adding a touch of randomness before to pickup data from the queue
+        time.sleep(random.randint(1, 101)/1000)
+        if poll_q.qsize() != 0:
+            print(current_process().name + ': ' + "Pick up from queue to query snmp")
+            print(current_process().name + ': ' + "Qsize before pickup is {}".format(poll_q.qsize()))
+            # Grabbing task from the poll queue
+            try:
+                poll = poll_q.get(timeout=10)
+            except Exception as e:
+                print(e)
+                break
+            print(current_process().name + ': ' + "Qsize after pickup is {}".format(poll_q.qsize()))
+        else:
+            print(current_process().name + ': ' + "qsize is 0 breaking loop, you should see returning snmp worker next")
+            break
 
         # Process data from the queue
         hostname = poll[1]
@@ -69,12 +84,17 @@ def ipsla_worker(poll_q, ipsla_q):
         snmp_priv_protocol = poll[11]
         snmp_priv_password = decrypt(encryption_key, poll[12]).decode('ascii')
 
+        print(current_process().name + ': ', end='', flush=True)
+        print(poll)
+
         # Open OID Template
         try:
             f = open('ipsla_templates/' + cons_ipsla_types[int(ipsla_type)] + '.yaml', 'r')
         except FileNotFoundError:
             print('Type {type} not implemented yet!!!'.format(type=ipsla_type))
             return
+        except Exception as e:
+            print(e)
 
         # Reading yaml IPSLA template
         template = yaml.load(f)
@@ -92,12 +112,15 @@ def ipsla_worker(poll_q, ipsla_q):
                                    security_username=snmp_security_username, auth_protocol=snmp_auth_protocol,
                                    auth_password=snmp_auth_password, privacy_protocol=snmp_priv_protocol,
                                    privacy_password=snmp_priv_password)
+        print(current_process().name + ': ' + 'query for snmps')
         ipsla_results = {}
         ipsla_results['hostname'] = hostname
         ipsla_results['ipsla_index'] = ipsla_index
         # Get sysuptime
         try:
+            print(current_process().name + ': ' + 'polling sysuptime')
             ipsla_results['sysuptime'] = snmp_session.get('1.3.6.1.2.1.1.3.0').value
+            print(current_process().name + ': ' + 'sysuptime polled')
             # Handle timeout error
         except EasySNMPTimeoutError:
             message = "Timeout connecting to host {host}".format(host=hostname)
@@ -113,10 +136,14 @@ def ipsla_worker(poll_q, ipsla_q):
             message = "Device {host} not supported".format(host=hostname)
             print(message)
             break
+        except Exception as e:
+            print(e)
         # Get snmp data from the template
         for key in template:
             try:
+                print(current_process().name + ': ' + 'about to poll {}'.format(key))
                 snmp_res = snmp_session.get(template[key] + '.' + ipsla_index)
+                print(current_process().name + ': ' + 'Polled {}'.format(key))
                 # Handle timeout error
             except EasySNMPTimeoutError:
                 message = "Timeout connecting to host {host}".format(host=hostname)
@@ -136,24 +163,45 @@ def ipsla_worker(poll_q, ipsla_q):
                 message = "No Such an Instance Error"
                 print(message)
                 break
+            except Exception as e:
+                print(e)
 
             ipsla_results[key] = snmp_res.value
+            print(current_process().name + ': ', end='', flush=True)
+            print(ipsla_results)
 
         # Adding Data to the queue to be later processed by the db process
+        print(current_process().name + ': ' + 'About to add to the snmp queue')
         ipsla_q.put(ipsla_results)
+        print(current_process().name + ': ' + 'Added to the snmp queue')
+
+    print(current_process().name + ': ' + "Return from SNMP Worker")
     return
 
 
 def db_worker(ipsla_q):
-    while ipsla_q.qsize() != 0:
+    while True:
         # Retrieving SNMP config from yaml
         f = open('config.yaml', 'r')
         config = yaml.load(f)
 
         f.close()
 
-        # Grabbing data from queue
-        ipsla_processed = ipsla_q.get()
+        print("Queue Size before pick up: {}".format(ipsla_q.qsize(),))
+
+        # Adding a touch of randomness before to pickup data from the queue
+        time.sleep(random.randint(1, 101) / 1000)
+        if ipsla_q.qsize() != 0:
+            print("Pick up from queue to insert in db")
+            # Grabbing data from queue
+            try:
+                ipsla_processed = ipsla_q.get(timeout=10)
+            except Exception as e:
+                print(e)
+                break
+            print("Queue Size after pick up: {}".format(ipsla_q.qsize(), ))
+        else:
+            return
 
         # Check type of Database is used
         if config['db'].lower() == 'sqlite':
@@ -177,10 +225,14 @@ def db_worker(ipsla_q):
             sql2 = ' VALUES('
             sql3 = 'SELECT * FROM ' + cons_ipsla_types[int(ipsla_processed['type'])] + ' WHERE '
             for key in ipsla_processed:
-                if key == 'target_address' or key == 'source_address':
+                if key == 'hostname' or key == 'ipsla_index' or key == 'time':
+                    sql1 = sql1 + key + ','
+                    sql2 = sql2 + '\'' + ipsla_processed[key] + '\','
+                    sql3 = sql3 + key + '=\'' + ipsla_processed[key] + '\' AND '
+                elif key == 'target_address' or key == 'source_address':
                     sql1 = sql1 + key + ','
                     sql2 = sql2 + '\'' + str(IPv4Address(ipsla_processed[key].encode('latin-1'))) + '\','
-                    sql3 = sql3 + key + '=\'' + str(IPv4Address(ipsla_processed[key].encode('latin-1'))) + '\' AND '
+                    #sql3 = sql3 + key + '=\'' + str(IPv4Address(ipsla_processed[key].encode('latin-1'))) + '\' AND '
                     print("key: {key}, value: {value}".format(key=key,
                                                               value=IPv4Address(
                                                                   ipsla_processed[key].encode('latin-1'))))
@@ -191,7 +243,7 @@ def db_worker(ipsla_q):
                 else:
                     sql1 = sql1 + key + ','
                     sql2 = sql2 + '\'' + ipsla_processed[key] + '\','
-                    sql3 = sql3 + key + '=\'' + ipsla_processed[key] + '\' AND '
+                    #sql3 = sql3 + key + '=\'' + ipsla_processed[key] + '\' AND '
                     print("key: {key}, value: {value}".format(key=key, value=ipsla_processed[key]))
 
             diff = int(ipsla_processed['sysuptime']) - int(ipsla_processed[key])
@@ -210,6 +262,9 @@ def db_worker(ipsla_q):
             cursor.execute(sql3)
             exists = cursor.fetchone()
 
+            print("time: {}".format(ipsla_processed['time'], ))
+            print(sql3)
+
             if exists is None:
                 # Insert data into table
                 # Create table
@@ -218,8 +273,11 @@ def db_worker(ipsla_q):
                 # Commit Insert into table and close database
                 db.commit()
                 db.close()
+                print("Data Inserted !!!!!!!!!!!!!!!!!!!!!!!!!")
 
             print('##########################################\n' * 3)
+
+            print("Queue Size: {}".format(ipsla_q.qsize(), ))
 
         elif config['db'].lower() == 'mongodb':
 
@@ -297,6 +355,9 @@ def db_worker(ipsla_q):
             print("key: 'datetime', value: {value}".format(key=key,
                                                       value=converted_ticks.strftime("%Y-%m-%d %H:%M:%S")))
 
+            print('##########################################\n' * 3)
+
+    print('Returning from db worker')
     return
 
 
@@ -340,11 +401,15 @@ if __name__ == "__main__":
                 db_jobs.append(db_process)
                 db_process.start()
 
+            print("Finishing Workers Loop")
+
             for snmp_job in snmp_jobs:
                 snmp_job.join()
+                print("Joining SNMP workers")
 
             for db_job in db_jobs:
                 db_job.join()
+                print("Joining Db Workers")
 
             print("Ending Polling")
             time.sleep(config['poll_frequency'])
@@ -361,3 +426,6 @@ if __name__ == "__main__":
             print("Exiting")
 
             sys.exit(0)
+
+        except Exception as e:
+            print(e)
